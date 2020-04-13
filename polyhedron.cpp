@@ -131,15 +131,21 @@ int main()
 {
     double x=1.;
     polyhedron cub(x);
+    printf("%d\n",(int)cub.facets_list.size());
+    cub=cross(cub,plane(0,0,-1,-1));
+    printf("%d\n",(int)cub.facets_list.size());
     cub=cross(cub,plane(1,1,1,0));
+    printf("%d\n",(int)cub.facets_list.size());
     cub=cross(cub,plane(-1,1,1,0));
+    printf("%d\n",(int)cub.facets_list.size());
     cub.print();
+    printf("%d\n",(int)cub.facets_list.size());
     return 0;
 }
 polyhedron cross(polyhedron pol, plane space)
 {
     double t,dx,dy,dz,x0,y0,z0,x,y,z;
-
+    int key1=0, key2=0;
     std::vector<int> points_for_new_facet;
     for (int i=0;i<pol.facets_list.size();i++)
     {
@@ -237,10 +243,30 @@ polyhedron cross(polyhedron pol, plane space)
                                             pol.points_list[one_edge[1]].x,
                                             pol.points_list[one_edge[1]].y,
                                             pol.points_list[one_edge[1]].z);
-            pol.edges_list.push_back(edge(one_edge[0],one_edge[1]));
-            one_edge.push_back(pol.edges_list.size()-1);
-            points_for_new_facet.push_back(pol.edges_list.size()-1);
-            pol.facets_list[i].edges.push_back(one_edge[2]);
+            key2=-1;
+            for(int j=0;j<pol.edges_list.size();j++)
+            {
+                if((pol.edges_list[j].coord[0]==one_edge[0]&&pol.edges_list[j].coord[1]==one_edge[1])||
+                   (pol.edges_list[j].coord[1]==one_edge[0]&&pol.edges_list[j].coord[0]==one_edge[1]))
+                {
+                    key2=j;
+                }
+            }
+            if(-1==key2)
+            {
+                pol.edges_list.push_back(edge(one_edge[0],one_edge[1]));
+                one_edge.push_back(pol.edges_list.size()-1);
+                points_for_new_facet.push_back(pol.edges_list.size()-1);
+                pol.facets_list[i].edges.push_back(one_edge[2]);
+                key1=1;
+            }
+            else
+            {
+                one_edge.push_back(key2);
+                points_for_new_facet.push_back(key2);
+                pol.facets_list[i].edges.push_back(one_edge[2]);
+            }
+
         }
 
 
@@ -259,7 +285,10 @@ polyhedron cross(polyhedron pol, plane space)
         }
 
     }
-    pol.facets_list.push_back(facet(space.A,space.B,space.C,space.D,points_for_new_facet));
+    if(1==key1)
+    {
+        pol.facets_list.push_back(facet(space.A,space.B,space.C,space.D,points_for_new_facet));
+    }
     auto vec=std::begin(pol.facets_list);
     while(vec!=std::end(pol.facets_list))
     {
