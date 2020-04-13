@@ -102,29 +102,14 @@ public:
         {
             facet tec_facet=facets_list[i];
 
-            if(edges_list[tec_facet.edges[0]].coord[1]==edges_list[tec_facet.edges[1]].coord[0] || edges_list[tec_facet.edges[0]].coord[1]==edges_list[tec_facet.edges[1]].coord[1])
+            for(int j=0;j<tec_facet.edges.size();j++)
             {
-               fprintf(fp,"%f %f %f\n",points_list[edges_list[tec_facet.edges[0]].coord[0]].x,points_list[edges_list[tec_facet.edges[0]].coord[0]].y,points_list[edges_list[tec_facet.edges[0]].coord[0]].z);
-               tec=edges_list[tec_facet.edges[0]].coord[1];
+                edge tec_edge=edges_list[tec_facet.edges[j]];
+                fprintf(fp,"%f %f %f\n %f %f %f \n  \n\n",
+                        points_list[tec_edge.coord[0]].x,points_list[tec_edge.coord[0]].y,points_list[tec_edge.coord[0]].z,
+                        points_list[tec_edge.coord[1]].x,points_list[tec_edge.coord[1]].y,points_list[tec_edge.coord[1]].z);
             }
-            else
-            {
-                fprintf(fp,"%f %f %f\n",points_list[edges_list[tec_facet.edges[0]].coord[1]].x,points_list[edges_list[tec_facet.edges[0]].coord[1]].y,points_list[edges_list[tec_facet.edges[0]].coord[1]].z);
-                tec=edges_list[tec_facet.edges[0]].coord[0];
-            }
-            for(int j=1;j<tec_facet.edges.size();j++)
-            {
-                fprintf(fp,"%f %f %f\n",points_list[tec].x,points_list[tec].y,points_list[tec].z);
-                if(tec==edges_list[tec_facet.edges[j]].coord[0])
-                {
-                    tec=edges_list[tec_facet.edges[j]].coord[1];
-                }
-                else
-                {
-                    tec=edges_list[tec_facet.edges[j]].coord[0];
-                }
-            }
-            fprintf(fp,"%f %f %f\n  \n\n",points_list[tec].x,points_list[tec].y,points_list[tec].z);
+
         }
         fclose(fp);
     }
@@ -140,21 +125,22 @@ public:
     }
 
 };
-void cross(polyhedron pol, plane space);
+polyhedron cross(polyhedron pol, plane space);
 plane get_plane_by_three_points(double x1,double y1,double z1,double x2,double y2,double z2,double x3, double y3,double z3);
 int main()
 {
     double x=1.;
     polyhedron cub(x);
-    cross(cub,plane(0,0,1,0));
-    //cub.print();
+    cub=cross(cub,plane(1,1,1,0));
+    cub=cross(cub,plane(-1,1,1,0));
+    cub.print();
     return 0;
 }
-void cross(polyhedron pol, plane space)
+polyhedron cross(polyhedron pol, plane space)
 {
     double t,dx,dy,dz,x0,y0,z0,x,y,z;
 
-    std::vector<std::vector<int>> points_for_new_facet;
+    std::vector<int> points_for_new_facet;
     for (int i=0;i<pol.facets_list.size();i++)
     {
         std::vector<int> one_edge;
@@ -253,7 +239,7 @@ void cross(polyhedron pol, plane space)
                                             pol.points_list[one_edge[1]].z);
             pol.edges_list.push_back(edge(one_edge[0],one_edge[1]));
             one_edge.push_back(pol.edges_list.size()-1);
-            points_for_new_facet.push_back(one_edge);
+            points_for_new_facet.push_back(pol.edges_list.size()-1);
             pol.facets_list[i].edges.push_back(one_edge[2]);
         }
 
@@ -273,6 +259,7 @@ void cross(polyhedron pol, plane space)
         }
 
     }
+    pol.facets_list.push_back(facet(space.A,space.B,space.C,space.D,points_for_new_facet));
     auto vec=std::begin(pol.facets_list);
     while(vec!=std::end(pol.facets_list))
     {
@@ -285,5 +272,6 @@ void cross(polyhedron pol, plane space)
             ++vec;
         }
     }
-    pol.print();
+    return pol;
+    //pol.print();
 }
