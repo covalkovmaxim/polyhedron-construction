@@ -3,6 +3,7 @@
 #include <stdlib.h>
 
 #include <vector>
+#include<set>
 
 class point
 {
@@ -131,15 +132,15 @@ int main()
 {
     double x=1.;
     polyhedron cub(x);
-    printf("%d\n",(int)cub.facets_list.size());
+    printf("%d %d %d\n",(int)cub.facets_list.size(),(int)cub.edges_list.size(),(int)cub.points_list.size());
     cub=cross(cub,plane(0,0,-1,-1));
-    printf("%d\n",(int)cub.facets_list.size());
+    printf("%d %d %d\n",(int)cub.facets_list.size(),(int)cub.edges_list.size(),(int)cub.points_list.size());
     cub=cross(cub,plane(1,1,1,0));
-    printf("%d\n",(int)cub.facets_list.size());
+    printf("%d %d %d\n",(int)cub.facets_list.size(),(int)cub.edges_list.size(),(int)cub.points_list.size());
     cub=cross(cub,plane(-1,1,1,0));
-    printf("%d\n",(int)cub.facets_list.size());
+    printf("%d %d %d\n",(int)cub.facets_list.size(),(int)cub.edges_list.size(),(int)cub.points_list.size());
     cub.print();
-    printf("%d\n",(int)cub.facets_list.size());
+
     return 0;
 }
 polyhedron cross(polyhedron pol, plane space)
@@ -300,6 +301,58 @@ polyhedron cross(polyhedron pol, plane space)
         {
             ++vec;
         }
+    }
+
+    std::vector<edge> new_edges_list;
+    std::vector<int> new_edges_num;
+    for(auto i=std::begin(pol.edges_list);i!=std::end(pol.edges_list);++i)
+    {
+        if (0==(*i).del_flg)
+        {
+            new_edges_num.push_back(new_edges_list.size());
+            new_edges_list.push_back(*i);
+
+        }
+        else
+        {
+            new_edges_num.push_back(-1);
+        }
+    }
+    pol.edges_list=new_edges_list;
+    for(int i=0;i<pol.facets_list.size();i++)
+    {
+        for(int j=0;j<pol.facets_list[i].edges.size();j++)
+        {
+            pol.facets_list[i].edges[j]=new_edges_num[pol.facets_list[i].edges[j]];
+        }
+    }
+
+    std::set<int> using_points;
+    std::vector<point> new_points_list;
+    std::vector<int> new_points_num;
+
+    for(auto edg=std::begin(pol.edges_list);edg!=std::end(pol.edges_list);++edg)
+    {
+        using_points.insert((*edg).coord[0]);
+        using_points.insert((*edg).coord[1]);
+    }
+    for(int i=0;i<pol.points_list.size();i++)
+    {
+        if(using_points.find(i)!=std::end(using_points))
+        {
+            new_points_num.push_back(new_points_list.size());
+            new_points_list.push_back(pol.points_list[i]);
+        }
+        else
+        {
+            new_points_num.push_back(-1);
+        }
+    }
+    pol.points_list=new_points_list;
+    for(int i=0;i<pol.edges_list.size();i++)
+    {
+        pol.edges_list[i].coord[0]=new_points_num[pol.edges_list[i].coord[0]];
+        pol.edges_list[i].coord[1]=new_points_num[pol.edges_list[i].coord[1]];
     }
     return pol;
     //pol.print();
