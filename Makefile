@@ -14,11 +14,13 @@ EXE = cpp_example
 
 # CHANGEME: Here is the name of all object files corresponding to the source
 #           code that you wrote in order to define the problem statement
-OBJS =  cpp_example.o \
-	MyNLP.o
+OBJS =  polyhedron.o \
+	cpp_example.o \
+	MyNLP.o 
+	
 
 # CHANGEME: Additional libraries
-ADDLIBS =
+ADDLIBS = polyhedron.hpp
 
 # CHANGEME: Additional flags for compilation (e.g., include flags)
 ADDINCFLAGS =

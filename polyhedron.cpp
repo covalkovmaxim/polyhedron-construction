@@ -1,147 +1,89 @@
-#include <stdio.h>
-#include <math.h>
-#include <stdlib.h>
+#include "polyhedron.hpp"
 
-#include <vector>
-#include<set>
-
-class point
+polyhedron::polyhedron(char *name)
 {
-public:
+    FILE*fp=fopen(name,"rw");
+    int n,m,t1,t2;
     double x,y,z;
-    point(double x1,double y1,double z1)
+    fscanf(fp,"%d",&n);
+    for(int i=0;i<n;i++)
     {
-        x=x1;
-        y=y1;
-        z=z1;
+        fscanf(fp,"%lf%lf%lf",&x,&y,&z);
+        points_list.push_back(point(x,y,z));
     }
-};
-class edge
-{
-public:
-    int coord[2];
-    int del_flg;
-    edge(int ind1,int ind2)
+    fscanf(fp,"%d",&n);
+    for(int i=0;i<n;i++)
     {
-        coord[0]=ind1;
-        coord[1]=ind2;
-        del_flg=0;
+        fscanf(fp,"%d%d",&t1,&t2);
+        edges_list.push_back(edge(t1,t2));
     }
-
-};
-class facet
-{
-public:
-    double A, B, C, D;
-    std::vector<int> edges;
-    facet(double a,double b,double c, double d,int ind1, int ind2,int ind3,int ind4)
+    fscanf(fp,"%d",&n);
+    for(int i=0;i<n;i++)
     {
-        A=a; B=b;C=c;D=d;
-        edges.push_back(ind1);
-        edges.push_back(ind2);
-        edges.push_back(ind3);
-        edges.push_back(ind4);
-    }
-    facet(double a, double b, double c, double d, std::vector<int> vec)
-    {
-        A=a; B=b;C=c;D=d;
-        edges=vec;
-    }
-};
-class polyhedron
-{
-public:
-    std::vector<point> points_list;
-    std::vector<edge> edges_list;
-    std::vector<facet> facets_list;
-    polyhedron(polyhedron& init)
-    {
-        points_list=init.points_list;
-        edges_list=init.edges_list;
-        facets_list=init.facets_list;
-
-    }
-    polyhedron(double x)
-    {
-        points_list.push_back(point(-x,-x,-x));
-        points_list.push_back(point(x,-x,-x));
-        points_list.push_back(point(x,x,-x));
-        points_list.push_back(point(-x,x,-x));
-        points_list.push_back(point(-x,-x,x));
-        points_list.push_back(point(x,-x,x));
-        points_list.push_back(point(x,x,x));
-        points_list.push_back(point(-x,x,x));
-
-        edges_list.push_back(edge(0,1));//0
-        edges_list.push_back(edge(0,3));//1
-        edges_list.push_back(edge(0,4));//2
-        edges_list.push_back(edge(1,2));//3
-        edges_list.push_back(edge(1,5));//4
-        edges_list.push_back(edge(2,3));//5
-        edges_list.push_back(edge(2,6));//6
-        edges_list.push_back(edge(3,7));//7
-        edges_list.push_back(edge(4,5));//8
-        edges_list.push_back(edge(4,7));//9
-        edges_list.push_back(edge(5,6));//10
-        edges_list.push_back(edge(6,7));//11
-
-        facets_list.push_back(facet(0.,0.,1.,x,0,3,5,1));
-        facets_list.push_back(facet(0.,1.,0.,x,0,4,8,2));
-        facets_list.push_back(facet(1.,0.,1.,x,1,7,9,2));
-        facets_list.push_back(facet(0.,1.,0.,-x,5,6,11,7));
-        facets_list.push_back(facet(1.,0.,0.,-x,3,6,10,4));
-        facets_list.push_back(facet(0.,0.,1.,-x,8,10,11,9));
-    }
-
-    void print()
-    {
-        FILE*fp=fopen("out.txt","w");
-
-        int tec;
-
-        for (int i=0;i<facets_list.size();i++)
+        std::vector<int> edges_num;
+        fscanf(fp,"%d",&m);
+        for(int j=0;j<m;j++)
         {
-            facet tec_facet=facets_list[i];
-
-            for(int j=0;j<tec_facet.edges.size();j++)
-            {
-                edge tec_edge=edges_list[tec_facet.edges[j]];
-                fprintf(fp,"%f %f %f\n %f %f %f \n  \n\n",
-                        points_list[tec_edge.coord[0]].x,points_list[tec_edge.coord[0]].y,points_list[tec_edge.coord[0]].z,
-                        points_list[tec_edge.coord[1]].x,points_list[tec_edge.coord[1]].y,points_list[tec_edge.coord[1]].z);
-            }
-
+            fscanf(fp,"%d",&t1);
+            edges_num.push_back(t1);
         }
-        fclose(fp);
+        plane this_plane=this->get_plane_by_two_edges(edges_list[edges_num[0]],edges_list[edges_num[1]]);
+        facets_list.push_back(facet(this_plane.A,this_plane.B,this_plane.C,this_plane.D,edges_num));
     }
-};
-class plane
-{
-public:
-    double A,B,C,D;
 
-    plane(double a,double b,double c,double d)
+    fclose(fp);
+}
+polyhedron::polyhedron(double x)
+{
+    points_list.push_back(point(-x,-x,-x));
+    points_list.push_back(point(x,-x,-x));
+    points_list.push_back(point(x,x,-x));
+    points_list.push_back(point(-x,x,-x));
+    points_list.push_back(point(-x,-x,x));
+    points_list.push_back(point(x,-x,x));
+    points_list.push_back(point(x,x,x));
+    points_list.push_back(point(-x,x,x));
+
+    edges_list.push_back(edge(0,1));//0
+    edges_list.push_back(edge(0,3));//1
+    edges_list.push_back(edge(0,4));//2
+    edges_list.push_back(edge(1,2));//3
+    edges_list.push_back(edge(1,5));//4
+    edges_list.push_back(edge(2,3));//5
+    edges_list.push_back(edge(2,6));//6
+    edges_list.push_back(edge(3,7));//7
+    edges_list.push_back(edge(4,5));//8
+    edges_list.push_back(edge(4,7));//9
+    edges_list.push_back(edge(5,6));//10
+    edges_list.push_back(edge(6,7));//11
+
+    facets_list.push_back(facet(0.,0.,1.,x,0,3,5,1));
+    facets_list.push_back(facet(0.,1.,0.,x,0,4,8,2));
+    facets_list.push_back(facet(1.,0.,1.,x,1,7,9,2));
+    facets_list.push_back(facet(0.,1.,0.,-x,5,6,11,7));
+    facets_list.push_back(facet(1.,0.,0.,-x,3,6,10,4));
+    facets_list.push_back(facet(0.,0.,1.,-x,8,10,11,9));
+}
+void polyhedron::print()
+{
+    FILE*fp=fopen("out.txt","w");
+
+    int tec;
+
+    for (int i=0;i<facets_list.size();i++)
     {
-        A=a; B=b; C=c;D=d;
+        facet tec_facet=facets_list[i];
+
+        for(int j=0;j<tec_facet.edges.size();j++)
+        {
+            edge tec_edge=edges_list[tec_facet.edges[j]];
+            fprintf(fp,"%f %f %f\n %f %f %f \n  \n\n",
+                    points_list[tec_edge.coord[0]].x,points_list[tec_edge.coord[0]].y,points_list[tec_edge.coord[0]].z,
+                    points_list[tec_edge.coord[1]].x,points_list[tec_edge.coord[1]].y,points_list[tec_edge.coord[1]].z);
+        }
+
     }
-
-};
-polyhedron cross(polyhedron pol, plane space);
-plane get_plane_by_three_points(double x1,double y1,double z1,double x2,double y2,double z2,double x3, double y3,double z3);
-int main()
-{
-    double x=1.;
-    polyhedron cub(x);
-    printf("%d %d %d\n",(int)cub.facets_list.size(),(int)cub.edges_list.size(),(int)cub.points_list.size());
-    cub=cross(cub,plane(0,0,-1,-1));
-    printf("%d %d %d\n",(int)cub.facets_list.size(),(int)cub.edges_list.size(),(int)cub.points_list.size());
-    cub=cross(cub,plane(1,1,1,0));
-    printf("%d %d %d\n",(int)cub.facets_list.size(),(int)cub.edges_list.size(),(int)cub.points_list.size());
-    cub=cross(cub,plane(-1,1,1,0));
-    printf("%d %d %d\n",(int)cub.facets_list.size(),(int)cub.edges_list.size(),(int)cub.points_list.size());
-    cub.print();
-
-    return 0;
+    fclose(fp);
 }
 polyhedron cross(polyhedron pol, plane space)
 {
@@ -286,14 +228,14 @@ polyhedron cross(polyhedron pol, plane space)
         }
 
     }
-    if(1==key1)
+    if(1>=key1)
     {
         pol.facets_list.push_back(facet(space.A,space.B,space.C,space.D,points_for_new_facet));
     }
     auto vec=std::begin(pol.facets_list);
     while(vec!=std::end(pol.facets_list))
     {
-        if(0==(*vec).edges.size())
+        if(2>=(*vec).edges.size())
         {
             vec=pol.facets_list.erase(vec);
         }
@@ -357,3 +299,62 @@ polyhedron cross(polyhedron pol, plane space)
     return pol;
     //pol.print();
 }
+plane get_plane_by_three_points(double x1,double y1,double z1,double x2,double y2,double z2,double x3, double y3,double z3)
+{
+    double A,B,C,D,norm;
+    A=(y2-y1)*(z3-z1)-(z2-z1)*(y3-y1);
+    B=(z2-z1)*(x3-x1)-(x2-x1)*(z3-z1);
+    C=(x2-x1)*(y3-y1)-(y2-y1)*(x3-x1);
+    D=-(x1*A+y1*B+z1*C);
+    norm=sqrt(A*A+B*B+C*C);
+    if(0==norm)
+    {
+        norm=1.;
+    }
+    A=A/norm;
+    B=B/norm;
+    C=C/norm;
+    D=D/norm;
+    plane res(A,B,C,D);
+    return res;
+}
+plane polyhedron::get_plane_by_two_edges(edge ed1, edge ed2)
+{
+    plane res(points_list[ed1.coord[0]],points_list[ed1.coord[1]],points_list[ed2.coord[0]]);
+    if(fabs(res.A)+fabs(res.B)+fabs(res.C)<1.e-12)
+    {
+        res=plane(points_list[ed1.coord[0]],points_list[ed1.coord[1]],points_list[ed2.coord[1]]);
+    }
+    return res;
+}
+int polyhedron::get_edge_num_by_two_facets(facet f1,facet f2)
+{
+    for(auto i=std::begin(f1.edges);i!=std::end(f1.edges);++i)
+    {
+        for(auto j=std::begin(f2.edges);j!=std::end(f2.edges);++j)
+        {
+            if((*i)==(*j))
+            {
+                return (*i);
+            }
+        }
+    }
+    return -1;
+}
+/*int main()
+{
+    double x=1.;
+
+    polyhedron cub("start_model.txt");
+    plane pl(cub.points_list[0],cub.points_list[1],cub.points_list[4]);
+    printf("%d %d %d\n",(int)cub.facets_list.size(),(int)cub.edges_list.size(),(int)cub.points_list.size());
+    cub=cross(cub,pl);
+    printf("%d %d %d\n",(int)cub.facets_list.size(),(int)cub.edges_list.size(),(int)cub.points_list.size());
+    //cub=cross(cub,plane(1,1,1,0));
+    //printf("%d %d %d\n",(int)cub.facets_list.size(),(int)cub.edges_list.size(),(int)cub.points_list.size());
+    //cub=cross(cub,plane(-1,1,1,0));
+    //printf("%d %d %d\n",(int)cub.facets_list.size(),(int)cub.edges_list.size(),(int)cub.points_list.size());
+    cub.print();
+
+    return 0;
+}*/
