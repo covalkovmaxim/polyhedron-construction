@@ -10,7 +10,7 @@
 #include "polyhedron.hpp"
 #include <cassert>
 
-typedef Number (*func)(int, const Number*);
+
 using namespace Ipopt;
 
 /* Constructor. */
@@ -21,13 +21,13 @@ MyNLP::~MyNLP()
 {}
 Number df(std::function<Number(int,const Number*)> f,int n,const Number*x,int i);
 std::vector<std::function<Number(int,const Number*)>> arr_g;
-
-
-Number f(int n,const Number*x);
+std::vector<std::vector<int>> support_index;
+std::vector<int> part_support_index;
 std::function<Number(int,const Number*)> my_functional;
 polyhedron my_pol("start_model.txt");
 std::vector<point> points_for_edges[2];
-
+std::vector<double> coeffs;
+int total_nonzero_jac=0;
 bool MyNLP::get_nlp_info(Index& n, Index& m, Index& nnz_jac_g,
                          Index& nnz_h_lag, IndexStyleEnum& index_style)
 {
@@ -37,8 +37,12 @@ bool MyNLP::get_nlp_info(Index& n, Index& m, Index& nnz_jac_g,
       points_for_edges[0].push_back(my_pol.points_list[(*edg).coord[0]]);
       points_for_edges[1].push_back(my_pol.points_list[(*edg).coord[1]]);
   }
-
+  for(int i=0;i<my_pol.edges_list.size();i++)
+  {
+      coeffs.push_back(0.1);
+  }
   FILE*fp=fopen("corected_edges.txt","rw");
+  FILE*fp1=fopen("draw_cor_edges.txt","w");
   int siz,num1,num2,tec_num;
   double xx,yy,zz;
   fscanf(fp,"%d",&siz);
@@ -47,13 +51,16 @@ bool MyNLP::get_nlp_info(Index& n, Index& m, Index& nnz_jac_g,
       fscanf(fp,"%d %d",&num1,&num2);
       tec_num=my_pol.get_edge_num_by_two_facets(my_pol.facets_list[num1],my_pol.facets_list[num2]);
       fscanf(fp,"%lf %lf %lf",&xx,&yy,&zz);
+      fprintf(fp1,"%f %f %f\n",xx,yy,zz);
       points_for_edges[0][tec_num]=point(xx,yy,zz);
       fscanf(fp,"%lf %lf %lf",&xx,&yy,&zz);
+      fprintf(fp1,"%f %f %f   \n   \n\n",xx,yy,zz);
       points_for_edges[1][tec_num]=point(xx,yy,zz);
-
+      coeffs[tec_num]=1.;
   }
 
   fclose(fp);
+  fclose(fp1);
   std::vector<std::function<Number(int,const Number*)>> part_functional_vector;
   for(int i=0;i<points_for_edges[0].size();i++)
   {
@@ -61,8 +68,9 @@ bool MyNLP::get_nlp_info(Index& n, Index& m, Index& nnz_jac_g,
       point tec_point2=points_for_edges[1][i];
       int tec_point_num1=my_pol.edges_list[i].coord[0];
       int tec_point_num2=my_pol.edges_list[i].coord[1];
+      double my_coeff=coeffs[i];
       std::function<Number(int,const Number*)> tec_functional=
-      [tec_point1,tec_point2,tec_point_num1,tec_point_num2](int n, const Number* x)
+      [my_coeff,tec_point1,tec_point2,tec_point_num1,tec_point_num2](int n, const Number* x)
       {
           Number res=0.;
           Number numerator1_minus,numerator2_minus,numenator1_plus,numenator2_plus,denominator;
@@ -87,10 +95,10 @@ bool MyNLP::get_nlp_info(Index& n, Index& m, Index& nnz_jac_g,
                       (tec_point2.y-tec_point1.y)*(tec_point2.y-tec_point1.y)+
                       (tec_point2.z-tec_point1.z)*(tec_point2.z-tec_point1.z);
 
-          res=(numenator1_plus+numenator2_plus-(numerator1_minus*numerator1_minus+numerator2_minus*numerator2_minus))/denominator;
+          res=(numenator1_plus+numenator2_plus)-(numerator1_minus*numerator1_minus+numerator2_minus*numerator2_minus)/denominator;
 
 
-          return res;
+          return my_coeff*res;
 
 
 
@@ -116,8 +124,12 @@ bool MyNLP::get_nlp_info(Index& n, Index& m, Index& nnz_jac_g,
           int point_ind1,point_ind2;
           point_ind1=my_pol.edges_list[(*edg)].coord[0];
           point_ind2=my_pol.edges_list[(*edg)].coord[1];
+
           if(knowing_points.find(point_ind1)==std::end(knowing_points))
           {
+              part_support_index={point_ind1*3,point_ind1*3+1,point_ind1*3+2,
+                                  planes_index_start+i*4,planes_index_start+i*4+1,
+                                  planes_index_start+i*4+2,planes_index_start+i*4+3};
               arr_g.push_back(
                                 [point_ind1,i,planes_index_start](int n, const Number* x)
                                 {
@@ -128,9 +140,13 @@ bool MyNLP::get_nlp_info(Index& n, Index& m, Index& nnz_jac_g,
                                 }
                              );
               knowing_points.insert(point_ind1);
+              support_index.push_back(part_support_index);
           }
           if(knowing_points.find(point_ind2)==std::end(knowing_points))
           {
+              part_support_index={point_ind2*3,point_ind2*3+1,point_ind2*3+2,
+                                  planes_index_start+i*4,planes_index_start+i*4+1,
+                                  planes_index_start+i*4+2,planes_index_start+i*4+3};
               arr_g.push_back(
                                 [point_ind2,i,planes_index_start](int n, const Number* x)
                                 {
@@ -141,8 +157,10 @@ bool MyNLP::get_nlp_info(Index& n, Index& m, Index& nnz_jac_g,
                                 }
                              );
               knowing_points.insert(point_ind2);
+              support_index.push_back(part_support_index);
           }
       }
+      part_support_index={planes_index_start+i*4,planes_index_start+i*4+1,planes_index_start+i*4+2};
       arr_g.push_back(
                         [i,planes_index_start](int n, const Number* x)
                         {
@@ -152,7 +170,13 @@ bool MyNLP::get_nlp_info(Index& n, Index& m, Index& nnz_jac_g,
 
                         }
                      );
+      support_index.push_back(part_support_index);
   }
+  for(auto ind=std::begin(support_index);ind!=std::end(support_index);++ind)
+  {
+      total_nonzero_jac+=(int)ind->size();
+  }
+  printf("total=%d\n",total_nonzero_jac);
   // The problem described in MyNLP.hpp has 2 variables, x1, & x2,
   n = 3*(int)my_pol.points_list.size()+4*(int)my_pol.facets_list.size();
 
@@ -160,7 +184,7 @@ bool MyNLP::get_nlp_info(Index& n, Index& m, Index& nnz_jac_g,
   m = (int)arr_g.size();
 
   // 2 nonzeros in the jacobian (one for x1, and one for x2),
-  nnz_jac_g =n*m;
+  nnz_jac_g =total_nonzero_jac;
 
   // and 2 nonzeros in the hessian of the lagrangian
   // (one in the hessian of the objective for x2,
@@ -170,7 +194,7 @@ bool MyNLP::get_nlp_info(Index& n, Index& m, Index& nnz_jac_g,
   // We use the standard fortran index style for row/col entries
   index_style = FORTRAN_STYLE;
 
-
+  my_pol.print();
   return true;
 }
 
@@ -284,7 +308,7 @@ bool MyNLP::eval_jac_g(Index n, const Number* x, bool new_x,
                        Index m, Index nele_jac, Index* iRow, Index *jCol,
                        Number* values)
 {
-
+  int tec_num=0;
   if (values == NULL) {
     // return the structure of the jacobian of the constraints
 
@@ -295,25 +319,29 @@ bool MyNLP::eval_jac_g(Index n, const Number* x, bool new_x,
     // element at 1,2: grad_{x2} g_{1}(x)
     //      iRow[1] = 1;
     //      jCol[1] = 2;
+      tec_num=0;
       for(int i=0;i<m;i++)
       {
-          for(int j=0;j<n;j++)
+          for(auto gg=std::begin(support_index[i]);gg!=std::end(support_index[i]);++gg)
           {
-              iRow[i*n+j]=i+1;
-              jCol[i*n+j]=j+1;
+              iRow[tec_num]=i+1;
+              jCol[tec_num]=(*gg)+1;
+              tec_num++;
           }
       }
 
   }
   else {
-
+      tec_num=0;
       for(int i=0;i<m;i++)
-          for(int j=0;j<n;j++)
+      {
+          for(auto gg=std::begin(support_index[i]);gg!=std::end(support_index[i]);++gg)
           {
-
-              values[i*n+j]=df(arr_g[i],n,x,j);
-
+              values[tec_num]=df(arr_g[i],n,x,(*gg));
+              tec_num++;
           }
+      }
+
 
   }
 
@@ -339,13 +367,51 @@ void MyNLP::finalize_solution(SolverReturn status,
     {
         printf("x=%f y=%f z=%f\n",(double) x[3*i+0],(double) x[3*i+1],(double) x[3*i+2]);
     }*/
-    for(int i=0;i<my_pol.points_list.size();i++)
+    /*for(int i=0;i<my_pol.points_list.size();i++)
     {
         printf("%f %f %f\n",x[i*3+0],x[i*3+1],x[i*3+2]);
         my_pol.points_list[i]=point(x[i*3+0],x[i*3+1],x[i*3+2]);
 
-    }
+    }*/
     printf("%f\n",my_functional(n,x));
+    point mass_center(0.,0.,0.);
+    for(auto p=std::begin(my_pol.points_list);p!=std::end(my_pol.points_list);++p)
+    {
+        mass_center.x+=(*p).x;
+        mass_center.y+=(*p).y;
+        mass_center.z+=(*p).z;
+    }
+    mass_center.x/=(double)(my_pol.points_list.size());
+    mass_center.y/=(double)(my_pol.points_list.size());
+    mass_center.z/=(double)(my_pol.points_list.size());
+    int planes_index_start=3*(int)my_pol.points_list.size();
+    std::vector<plane> planes;
+    //printf("center: %f %f %f\n",mass_center.x,mass_center.y,mass_center.z);
+    for(int i=0;i<my_pol.facets_list.size();i++)
+    {
+        printf("plane: %f %f %f %f\n",x[planes_index_start+i*4+0],x[planes_index_start+i*4+1],x[planes_index_start+i*4+2],x[planes_index_start+i*4+3]);
+        if(x[planes_index_start+i*4+0]*mass_center.x+
+           x[planes_index_start+i*4+1]*mass_center.y+
+           x[planes_index_start+i*4+2]*mass_center.z+
+           x[planes_index_start+i*4+3]>0)
+        {
+
+            planes.push_back(plane(-x[planes_index_start+i*4+0],
+                                   -x[planes_index_start+i*4+1],
+                                   -x[planes_index_start+i*4+2],
+                                   -x[planes_index_start+i*4+3]));
+
+        }
+        else
+        {
+            planes.push_back(plane(x[planes_index_start+i*4+0],
+                                   x[planes_index_start+i*4+1],
+                                   x[planes_index_start+i*4+2],
+                                   x[planes_index_start+i*4+3]));
+        }
+    }
+    my_pol=construct_polyhedron_by_planes_list(&planes);
+    printf("%d %d %d\n",my_pol.points_list.size(),my_pol.edges_list.size(),my_pol.facets_list.size());
     my_pol.print();
   // here is where we would store the solution to variables, or write to a file, etc
   // so we could use the solution. Since the solution is displayed to the console,
@@ -353,48 +419,6 @@ void MyNLP::finalize_solution(SolverReturn status,
 }
 
 
-Number f(int n, const Number*x)
-{
-    FILE*fp=fopen("input.txt","r");
-    Number *X=new Number[4];
-    double *input_x=new double[4];
-    for(int i=0;i<4;i++)
-    {
-        X[i]=x[3*i];
-    }
-    Number *Y=new Number[4];
-    double *input_y=new double[4];
-    for(int i=0;i<4;i++)
-    {
-        Y[i]=x[3*i+1];
-    }
-    Number *Z=new Number[4];
-    double *input_z=new double[4];
-    for(int i=0;i<4;i++)
-    {
-        Z[i]=x[3*i+2];
-    }
-    Number A=x[12],B=x[13],C=x[14],D=x[15];
-    for(int i=0;i<4;i++)
-    {
-        fscanf(fp,"%lf %lf %lf",&input_x[i],&input_y[i],&input_z[i]);
-    }
-    //obj_value = -(x2 - 2.0) * (x1 - 2.0);
-    Number res=(X[0]-input_x[0])*(X[0]-input_x[0])+(Y[0]-input_y[0])*(Y[0]-input_y[0])+(Z[0]-input_z[0])*(Z[0]-input_z[0])
-            +(X[1]-input_x[1])*(X[1]-input_x[1])+(Y[1]-input_y[1])*(Y[1]-input_y[1])+(Z[1]-input_z[1])*(Z[1]-input_z[1])
-            +(X[2]-input_x[2])*(X[2]-input_x[2])+(Y[2]-input_y[2])*(Y[2]-input_y[2])+(Z[2]-input_z[2])*(Z[2]-input_z[2])
-            +(X[3]-input_x[3])*(X[3]-input_x[3])+(Y[3]-input_y[3])*(Y[3]-input_y[3])+(Z[3]-input_z[3])*(Z[3]-input_z[3]);
-    delete[]X;
-    delete[]Y;
-    delete[]Z;
-
-    delete[]input_x;
-    delete[]input_y;
-    delete[]input_z;
-
-    fclose(fp);
-    return res;
-}
 Number df(std::function<Number(int,const Number*)> f,int n,const Number*x,int i)
 {
     Number*x1=new Number[n];
@@ -408,12 +432,12 @@ Number df(std::function<Number(int,const Number*)> f,int n,const Number*x,int i)
         else
         {
             //printf("\ninput:%lf \n",x[i]);
-            x1[i]=x[i]-0.000001;
-            x2[i]=x[i]+0.000001;
+            x1[i]=x[i]-1.e-6;
+            x2[i]=x[i]+1.e-6;
         }
     }
     //printf("\nup:%lf down:%lf\n",x2[i],x1[i]);
-    Number res=(f(n,x2)-f(n,x1))/0.000002;
+    Number res=(f(n,x2)-f(n,x1))/2.e-6;
 
     delete[]x1;
     delete[]x2;

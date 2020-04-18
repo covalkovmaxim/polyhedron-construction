@@ -108,22 +108,16 @@ polyhedron cross(polyhedron pol, plane space)
             dz=pol.points_list[tec_edge.coord[1]].z-pol.points_list[tec_edge.coord[0]].z;
             if(fabs(space.A*dx+space.B*dy+space.C*dz)<1.e-12)
             {
-                if(space.A*x0+space.B*y0+space.C*z0+space.D>0)
+                if(space.A*x0+space.B*y0+space.C*z0+space.D>0.)
                 {
                     pol.edges_list[tec_facet.edges[j]].del_flg=1;
                 }
                 continue;
             }
             t=-(space.A*x0+space.B*y0+space.C*z0+space.D)/(space.A*dx+space.B*dy+space.C*dz);
-            if(t<0||t>1)
-            {
-                if(space.A*x0+space.B*y0+space.C*z0+space.D>0)
-                {
-                    pol.edges_list[tec_facet.edges[j]].del_flg=1;
-                }
-                continue;
-            }
-            if(fabs(t)<1.e-12||fabs(t-1)<1.e-12)
+            //printf("t=%e\n",t);
+
+            if(fabs(t)<1.e-12||fabs(t-1.)<1.e-12)
             {
                 if(fabs(t)<1.e-12)
                 {
@@ -154,7 +148,15 @@ polyhedron cross(polyhedron pol, plane space)
                     }
                 }
             }
-            else
+            if(t<0||t>1)
+            {
+                if(space.A*x0+space.B*y0+space.C*z0+space.D>0.)
+                {
+                    pol.edges_list[tec_facet.edges[j]].del_flg=1;
+                }
+                continue;
+            }
+            if(fabs(t)>1.e-12&&fabs(t-1.)>1.e-12)
             {
                 x=x0+dx*t;
                 y=y0+dy*t;
@@ -321,7 +323,7 @@ plane get_plane_by_three_points(double x1,double y1,double z1,double x2,double y
 plane polyhedron::get_plane_by_two_edges(edge ed1, edge ed2)
 {
     plane res(points_list[ed1.coord[0]],points_list[ed1.coord[1]],points_list[ed2.coord[0]]);
-    if(fabs(res.A)+fabs(res.B)+fabs(res.C)<1.e-12)
+    if(fabs(res.A)+fabs(res.B)+fabs(res.C)<1.e-9)
     {
         res=plane(points_list[ed1.coord[0]],points_list[ed1.coord[1]],points_list[ed2.coord[1]]);
     }
@@ -341,12 +343,53 @@ int polyhedron::get_edge_num_by_two_facets(facet f1,facet f2)
     }
     return -1;
 }
+polyhedron construct_polyhedron_by_planes_list(std::vector<plane>* planes)
+{
+    double x=100.;
+    polyhedron my_pol(x);
+    int exit_key=1;
+    std::vector<point> old_points_list;
+    while(1==exit_key)
+    {
+        my_pol=polyhedron(x);
+        old_points_list=my_pol.points_list;
+        for(auto space=std::begin((*planes));space<std::end((*planes));++space)
+        {
+            //printf("%e %e %e %e\n",(*space).A,(*space).B,(*space).C,(*space).D);
+            my_pol=cross(my_pol,(*space));
+            printf("%d %d %d\n",my_pol.points_list.size(),my_pol.edges_list.size(),my_pol.facets_list.size());
+            //break;
+        }
+        exit_key=0;
+        for(auto old_point=std::begin(old_points_list);old_point!=std::end(old_points_list);++old_point)
+        {
+
+            for(auto new_point=std::begin(my_pol.points_list);new_point!=std::end(my_pol.points_list);++new_point)
+            {
+                if(fabs((*old_point).x-(*new_point).x)<1.e-12 &&
+                   fabs((*old_point).y-(*new_point).y)<1.e-12 &&
+                   fabs((*old_point).z-(*new_point).z)<1.e-12)
+                {
+                    exit_key=1;
+                    break;
+                }
+            }
+            if(1==exit_key)
+            {
+                break;
+            }
+        }
+        x*=2.;
+        //break;
+    }
+    return my_pol;
+}
 /*int main()
 {
-    double x=1.;
+    double x=100.;
 
-    polyhedron cub("start_model.txt");
-    plane pl(cub.points_list[0],cub.points_list[1],cub.points_list[4]);
+    polyhedron cub(x);
+    plane pl(0.,0.,-1.,0.);
     printf("%d %d %d\n",(int)cub.facets_list.size(),(int)cub.edges_list.size(),(int)cub.points_list.size());
     cub=cross(cub,pl);
     printf("%d %d %d\n",(int)cub.facets_list.size(),(int)cub.edges_list.size(),(int)cub.points_list.size());

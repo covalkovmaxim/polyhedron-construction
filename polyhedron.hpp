@@ -90,3 +90,4 @@ public:
 
 };
 polyhedron cross(polyhedron pol, plane space);
+polyhedron construct_polyhedron_by_planes_list(std::vector<plane>* planes);
