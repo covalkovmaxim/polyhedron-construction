@@ -24,7 +24,7 @@ std::vector<std::function<Number(int,const Number*)>> arr_g;
 std::vector<std::vector<int>> support_index;
 std::vector<int> part_support_index;
 std::function<Number(int,const Number*)> my_functional;
-polyhedron my_pol("start_model.txt");
+polyhedron my_pol("new_big_initpoly.txt");
 std::vector<point> points_for_edges[2];
 std::vector<double> coeffs;
 int total_nonzero_jac=0;
@@ -41,7 +41,7 @@ bool MyNLP::get_nlp_info(Index& n, Index& m, Index& nnz_jac_g,
   {
       coeffs.push_back(0.1);
   }
-  FILE*fp=fopen("corected_edges.txt","rw");
+  FILE*fp=fopen("big_corred.txt","rw");
   FILE*fp1=fopen("draw_cor_edges.txt","w");
   int siz,num1,num2,tec_num;
   double xx,yy,zz;
@@ -176,7 +176,7 @@ bool MyNLP::get_nlp_info(Index& n, Index& m, Index& nnz_jac_g,
   {
       total_nonzero_jac+=(int)ind->size();
   }
-  printf("total=%d\n",total_nonzero_jac);
+  //printf("total=%d\n",total_nonzero_jac);
   // The problem described in MyNLP.hpp has 2 variables, x1, & x2,
   n = 3*(int)my_pol.points_list.size()+4*(int)my_pol.facets_list.size();
 
@@ -229,7 +229,8 @@ bool MyNLP::get_bounds_info(Index n, Number* x_l, Number* x_u,
 
   for(int i=0;i<m;i++)
   {
-      g_l[i]=g_u[i]=0.0;
+      g_l[i]=0.;
+      g_u[i]=0.;
   }
 
   return true;
@@ -389,7 +390,7 @@ void MyNLP::finalize_solution(SolverReturn status,
     //printf("center: %f %f %f\n",mass_center.x,mass_center.y,mass_center.z);
     for(int i=0;i<my_pol.facets_list.size();i++)
     {
-        printf("plane: %f %f %f %f\n",x[planes_index_start+i*4+0],x[planes_index_start+i*4+1],x[planes_index_start+i*4+2],x[planes_index_start+i*4+3]);
+        //printf("plane: %f %f %f %f\n",x[planes_index_start+i*4+0],x[planes_index_start+i*4+1],x[planes_index_start+i*4+2],x[planes_index_start+i*4+3]);
         if(x[planes_index_start+i*4+0]*mass_center.x+
            x[planes_index_start+i*4+1]*mass_center.y+
            x[planes_index_start+i*4+2]*mass_center.z+
@@ -411,7 +412,8 @@ void MyNLP::finalize_solution(SolverReturn status,
         }
     }
     my_pol=construct_polyhedron_by_planes_list(&planes);
-    printf("%d %d %d\n",my_pol.points_list.size(),my_pol.edges_list.size(),my_pol.facets_list.size());
+    //printf("%d %d %d\n",my_pol.points_list.size(),my_pol.edges_list.size(),my_pol.facets_list.size());
+
     my_pol.print();
   // here is where we would store the solution to variables, or write to a file, etc
   // so we could use the solution. Since the solution is displayed to the console,

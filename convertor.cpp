@@ -16,7 +16,7 @@ int main()
     {
         fscanf(in,"%d%lf%lf%lf",&p1,&x,&y,&z);
         fprintf(out,"%f %f %f\n",x,y,z);
-        printf("%f %f %f\n",x,y,z);
+        //printf("%f %f %f\n",x,y,z);
     }
     index=new int[n2];
     edges=new std::pair<int,int>[n2];
@@ -28,7 +28,7 @@ int main()
         edges[i].first=p1;
         edges[i].second=p2;
         key=0;
-        for(int j=0;j<i-1;j++)
+        for(int j=0;j<i;j++)
         {
             if(edges[j].first==edges[i].second && edges[j].second==edges[i].first)
             {
@@ -54,13 +54,36 @@ int main()
     {
         fscanf(in,"%d%d%lf%lf%lf%lf",&oth1,&sides_num,&other,&other,&other,&other);
         fprintf(out,"%d ",sides_num);
+        int*tec_arr=new int [sides_num];
+
         for(int j=0;j<sides_num;j++)
         {
             fscanf(in,"%d",&tec_num);
-            fprintf(out,"%d ",index[tec_num]);
+            tec_arr[j]=tec_num;
+            //fprintf(out,"%d ",index[tec_num]);
         }
+        int tec_elem,next_elem;
+        for(int j=0;j<sides_num;j++)
+        {
+            tec_elem=tec_arr[j];
+            next_elem=tec_arr[(j+1)%sides_num];
+            for(int k=0;k<n2;k++)
+            {
+                if(tec_elem==edges[k].first && next_elem==edges[k].second)
+                {
+                    fprintf(out,"%d ",index[k]);
+                    //printf("%d ",index[k]);
+                    break;
+                }
+            }
+        }
+        delete []tec_arr;
         fprintf(out,"\n");
     }
+    printf("edges_num=%d\n",cor_num);
+    polyhedron my_pol("new_big_initpoly.txt");
+    printf("%d %d %d\n",my_pol.points_list.size(),my_pol.edges_list.size(),my_pol.facets_list.size());
+    my_pol.print();
     fclose(in);
     fclose(out);
     delete[]index;
