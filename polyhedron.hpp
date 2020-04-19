@@ -17,7 +17,15 @@ public:
         y=y1;
         z=z1;
     }
+    point operator+(const point& right_point) const;
+    point operator-(const point& right_point) const;
+    double operator*(const point& right_point) const;
+    point operator*(const double& right_number) const;
+    point operator/(const double& right_number) const;
+    bool operator==(const point& right_point) const;
+
 };
+point operator*(const double& left_number, const point& right_point);
 class edge
 {
 public:
@@ -49,6 +57,7 @@ public:
         A=a; B=b;C=c;D=d;
         edges=vec;
     }
+    bool operator==(const facet& right_facet) const;
 };
 class polyhedron
 {
@@ -89,5 +98,5 @@ public:
     }
 
 };
-polyhedron cross(polyhedron pol, plane space);
+polyhedron cross(polyhedron&& pol, plane&& space);
 polyhedron construct_polyhedron_by_planes_list(std::vector<plane>* planes);

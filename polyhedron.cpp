@@ -70,11 +70,11 @@ void polyhedron::print()
 
     int tec;
 
-    for (int i=0;i<facets_list.size();i++)
+    for (int i=0;i<(int)facets_list.size();i++)
     {
         facet tec_facet=facets_list[i];
 
-        for(int j=0;j<tec_facet.edges.size();j++)
+        for(int j=0;j<(int)tec_facet.edges.size();j++)
         {
             edge tec_edge=edges_list[tec_facet.edges[j]];
             fprintf(fp,"%f %f %f\n %f %f %f \n  \n\n",
@@ -85,16 +85,16 @@ void polyhedron::print()
     }
     fclose(fp);
 }
-polyhedron cross(polyhedron pol, plane space)
+polyhedron cross(polyhedron&& pol, plane&& space)
 {
     double t,dx,dy,dz,x0,y0,z0,x,y,z;
     int key1=0, key2=0;
     std::vector<int> points_for_new_facet;
-    for (int i=0;i<pol.facets_list.size();i++)
+    for (int i=0;i<(int)pol.facets_list.size();i++)
     {
         std::vector<int> one_edge;
         facet tec_facet=pol.facets_list[i];
-        for(int j=0;j<tec_facet.edges.size();j++)
+        for(int j=0;j<(int)tec_facet.edges.size();j++)
         {
             edge tec_edge=pol.edges_list[tec_facet.edges[j]];
 
@@ -163,17 +163,17 @@ polyhedron cross(polyhedron pol, plane space)
                 z=z0+dz*t;
                 //printf("%f %f %f\n",x,y,z);
                 pol.points_list.push_back(point(x,y,z));
-                one_edge.push_back(pol.points_list.size()-1);
+                one_edge.push_back((int)pol.points_list.size()-1);
                 if(pol.points_list[tec_edge.coord[0]].x*space.A+
                    pol.points_list[tec_edge.coord[0]].y*space.B+
                    pol.points_list[tec_edge.coord[0]].z*space.C+
                    space.D>0)
                 {
-                    pol.edges_list[tec_facet.edges[j]].coord[0]=pol.points_list.size()-1;
+                    pol.edges_list[tec_facet.edges[j]].coord[0]=(int)pol.points_list.size()-1;
                 }
                 else
                 {
-                    pol.edges_list[tec_facet.edges[j]].coord[1]=pol.points_list.size()-1;
+                    pol.edges_list[tec_facet.edges[j]].coord[1]=(int)pol.points_list.size()-1;
                 }
 
             }
@@ -182,14 +182,14 @@ polyhedron cross(polyhedron pol, plane space)
         //printf("size=%d\n",one_edge.size());
         if(2==one_edge.size())
         {
-            printf("%f %f %f, %f %f %f\n",  pol.points_list[one_edge[0]].x,
+            /*printf("%f %f %f, %f %f %f\n",  pol.points_list[one_edge[0]].x,
                                             pol.points_list[one_edge[0]].y,
                                             pol.points_list[one_edge[0]].z,
                                             pol.points_list[one_edge[1]].x,
                                             pol.points_list[one_edge[1]].y,
-                                            pol.points_list[one_edge[1]].z);
+                                            pol.points_list[one_edge[1]].z);*/
             key2=-1;
-            for(int j=0;j<pol.edges_list.size();j++)
+            for(int j=0;j<(int)pol.edges_list.size();j++)
             {
                 if((pol.edges_list[j].coord[0]==one_edge[0]&&pol.edges_list[j].coord[1]==one_edge[1])||
                    (pol.edges_list[j].coord[1]==one_edge[0]&&pol.edges_list[j].coord[0]==one_edge[1]))
@@ -200,8 +200,8 @@ polyhedron cross(polyhedron pol, plane space)
             if(-1==key2)
             {
                 pol.edges_list.push_back(edge(one_edge[0],one_edge[1]));
-                one_edge.push_back(pol.edges_list.size()-1);
-                points_for_new_facet.push_back(pol.edges_list.size()-1);
+                one_edge.push_back((int)pol.edges_list.size()-1);
+                points_for_new_facet.push_back((int)pol.edges_list.size()-1);
                 pol.facets_list[i].edges.push_back(one_edge[2]);
                 key1=1;
             }
@@ -237,7 +237,7 @@ polyhedron cross(polyhedron pol, plane space)
     auto vec=std::begin(pol.facets_list);
     while(vec!=std::end(pol.facets_list))
     {
-        if(2>=(*vec).edges.size())
+        if(2>=vec->edges.size())
         {
             vec=pol.facets_list.erase(vec);
         }
@@ -251,9 +251,9 @@ polyhedron cross(polyhedron pol, plane space)
     std::vector<int> new_edges_num;
     for(auto i=std::begin(pol.edges_list);i!=std::end(pol.edges_list);++i)
     {
-        if (0==(*i).del_flg)
+        if (0==i->del_flg)
         {
-            new_edges_num.push_back(new_edges_list.size());
+            new_edges_num.push_back((int)new_edges_list.size());
             new_edges_list.push_back(*i);
 
         }
@@ -263,9 +263,9 @@ polyhedron cross(polyhedron pol, plane space)
         }
     }
     pol.edges_list=new_edges_list;
-    for(int i=0;i<pol.facets_list.size();i++)
+    for(int i=0;i<(int)pol.facets_list.size();i++)
     {
-        for(int j=0;j<pol.facets_list[i].edges.size();j++)
+        for(int j=0;j<(int)pol.facets_list[i].edges.size();j++)
         {
             pol.facets_list[i].edges[j]=new_edges_num[pol.facets_list[i].edges[j]];
         }
@@ -277,14 +277,14 @@ polyhedron cross(polyhedron pol, plane space)
 
     for(auto edg=std::begin(pol.edges_list);edg!=std::end(pol.edges_list);++edg)
     {
-        using_points.insert((*edg).coord[0]);
-        using_points.insert((*edg).coord[1]);
+        using_points.insert(edg->coord[0]);
+        using_points.insert(edg->coord[1]);
     }
-    for(int i=0;i<pol.points_list.size();i++)
+    for(int i=0;i<(int)pol.points_list.size();i++)
     {
         if(using_points.find(i)!=std::end(using_points))
         {
-            new_points_num.push_back(new_points_list.size());
+            new_points_num.push_back((int)new_points_list.size());
             new_points_list.push_back(pol.points_list[i]);
         }
         else
@@ -293,7 +293,7 @@ polyhedron cross(polyhedron pol, plane space)
         }
     }
     pol.points_list=new_points_list;
-    for(int i=0;i<pol.edges_list.size();i++)
+    for(int i=0;i<(int)pol.edges_list.size();i++)
     {
         pol.edges_list[i].coord[0]=new_points_num[pol.edges_list[i].coord[0]];
         pol.edges_list[i].coord[1]=new_points_num[pol.edges_list[i].coord[1]];
@@ -348,27 +348,25 @@ polyhedron construct_polyhedron_by_planes_list(std::vector<plane>* planes)
     double x=100.;
     polyhedron my_pol(x);
     int exit_key=1;
-    std::vector<point> old_points_list;
+    std::vector<facet> old_facets_list;
     while(1==exit_key)
     {
         my_pol=polyhedron(x);
-        old_points_list=my_pol.points_list;
+        old_facets_list=my_pol.facets_list;
         for(auto space=std::begin((*planes));space<std::end((*planes));++space)
         {
             //printf("%e %e %e %e\n",(*space).A,(*space).B,(*space).C,(*space).D);
-            my_pol=cross(my_pol,(*space));
-            printf("%d %d %d\n",my_pol.points_list.size(),my_pol.edges_list.size(),my_pol.facets_list.size());
+            cross(std::forward<polyhedron>(my_pol),std::forward<plane>(*space));
+            //printf("%d %d %d\n",my_pol.points_list.size(),my_pol.edges_list.size(),my_pol.facets_list.size());
             //break;
         }
         exit_key=0;
-        for(auto old_point=std::begin(old_points_list);old_point!=std::end(old_points_list);++old_point)
+        for(auto old_facet=std::begin(old_facets_list);old_facet!=std::end(old_facets_list);++old_facet)
         {
 
-            for(auto new_point=std::begin(my_pol.points_list);new_point!=std::end(my_pol.points_list);++new_point)
+            for(auto new_facet=std::begin(my_pol.facets_list);new_facet!=std::end(my_pol.facets_list);++new_facet)
             {
-                if(fabs((*old_point).x-(*new_point).x)<1.e-12 &&
-                   fabs((*old_point).y-(*new_point).y)<1.e-12 &&
-                   fabs((*old_point).z-(*new_point).z)<1.e-12)
+                if((*old_facet)==(*new_facet))
                 {
                     exit_key=1;
                     break;
@@ -383,6 +381,48 @@ polyhedron construct_polyhedron_by_planes_list(std::vector<plane>* planes)
         //break;
     }
     return my_pol;
+}
+point point::operator+(const point& right_point) const
+{
+    return point(this->x+right_point.x,this->y+right_point.y,this->z+right_point.z);
+}
+point point::operator-(const point& right_point) const
+{
+    return point(this->x-right_point.x,this->y-right_point.y,this->z-right_point.z);
+}
+double point::operator*(const point& right_point) const
+{
+    return this->x*right_point.x+this->y*right_point.y+this->z*right_point.z;
+}
+point point::operator*(const double& right_number) const
+{
+    return point(this->x*right_number,this->y*right_number,this->z*right_number);
+}
+point point::operator/(const double& right_number) const
+{
+    return (*this)*(1./right_number);
+}
+
+bool point::operator==(const point& right_point) const
+{
+    return fabs(this->x-right_point.x)<1.e-12 &&
+           fabs(this->y-right_point.y)<1.e-12 &&
+           fabs(this->z-right_point.z)<1.e-12;
+}
+point operator*(const double& left_number, const point& right_point)
+{
+    return right_point*left_number;
+}
+bool facet::operator==(const facet& right_facet) const
+{
+    return (fabs(this->A-right_facet.A)<1.e-15 &&
+           fabs(this->B-right_facet.B)<1.e-15 &&
+           fabs(this->C-right_facet.C)<1.e-15 &&
+           fabs(this->D-right_facet.D)<1.e-15) ||
+           (fabs(this->A+right_facet.A)<1.e-15 &&
+           fabs(this->B+right_facet.B)<1.e-15 &&
+           fabs(this->C+right_facet.C)<1.e-15 &&
+           fabs(this->D+right_facet.D)<1.e-15);
 }
 /*int main()
 {

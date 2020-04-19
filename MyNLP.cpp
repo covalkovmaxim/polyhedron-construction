@@ -23,159 +23,18 @@ Number df(std::function<Number(int,const Number*)> f,int n,const Number*x,int i)
 std::vector<std::function<Number(int,const Number*)>> arr_g;
 std::vector<std::vector<int>> support_index;
 std::vector<int> part_support_index;
+std::vector<std::function<Number(int,const Number*)>> part_functional_vector;
 std::function<Number(int,const Number*)> my_functional;
-polyhedron my_pol("new_big_initpoly.txt");
+polyhedron my_pol("start_model.txt");
 std::vector<point> points_for_edges[2];
 std::vector<double> coeffs;
 int total_nonzero_jac=0;
+void construct_model();
 bool MyNLP::get_nlp_info(Index& n, Index& m, Index& nnz_jac_g,
                          Index& nnz_h_lag, IndexStyleEnum& index_style)
 {
 
-  for(auto edg=std::begin(my_pol.edges_list);edg!=std::end(my_pol.edges_list);++edg)
-  {
-      points_for_edges[0].push_back(my_pol.points_list[(*edg).coord[0]]);
-      points_for_edges[1].push_back(my_pol.points_list[(*edg).coord[1]]);
-  }
-  for(int i=0;i<my_pol.edges_list.size();i++)
-  {
-      coeffs.push_back(0.1);
-  }
-  FILE*fp=fopen("big_corred.txt","rw");
-  FILE*fp1=fopen("draw_cor_edges.txt","w");
-  int siz,num1,num2,tec_num;
-  double xx,yy,zz;
-  fscanf(fp,"%d",&siz);
-  for(int i=0;i<siz;i++)
-  {
-      fscanf(fp,"%d %d",&num1,&num2);
-      tec_num=my_pol.get_edge_num_by_two_facets(my_pol.facets_list[num1],my_pol.facets_list[num2]);
-      fscanf(fp,"%lf %lf %lf",&xx,&yy,&zz);
-      fprintf(fp1,"%f %f %f\n",xx,yy,zz);
-      points_for_edges[0][tec_num]=point(xx,yy,zz);
-      fscanf(fp,"%lf %lf %lf",&xx,&yy,&zz);
-      fprintf(fp1,"%f %f %f   \n   \n\n",xx,yy,zz);
-      points_for_edges[1][tec_num]=point(xx,yy,zz);
-      coeffs[tec_num]=1.;
-  }
-
-  fclose(fp);
-  fclose(fp1);
-  std::vector<std::function<Number(int,const Number*)>> part_functional_vector;
-  for(int i=0;i<points_for_edges[0].size();i++)
-  {
-      point tec_point1=points_for_edges[0][i];
-      point tec_point2=points_for_edges[1][i];
-      int tec_point_num1=my_pol.edges_list[i].coord[0];
-      int tec_point_num2=my_pol.edges_list[i].coord[1];
-      double my_coeff=coeffs[i];
-      std::function<Number(int,const Number*)> tec_functional=
-      [my_coeff,tec_point1,tec_point2,tec_point_num1,tec_point_num2](int n, const Number* x)
-      {
-          Number res=0.;
-          Number numerator1_minus,numerator2_minus,numenator1_plus,numenator2_plus,denominator;
-          //printf("%f %f %f %f %f %f\n",tec_point1.x,tec_point1.y,tec_point1.z,tec_point2.x,tec_point2.y,tec_point2.z);
-          numerator1_minus=(tec_point2.x-tec_point1.x)*(x[tec_point_num1*3]-tec_point1.x)+
-                     (tec_point2.y-tec_point1.y)*(x[tec_point_num1*3+1]-tec_point1.y)+
-                     (tec_point2.z-tec_point1.z)*(x[tec_point_num1*3+2]-tec_point1.z);
-
-          numenator1_plus=(x[tec_point_num1*3]-tec_point1.x)*(x[tec_point_num1*3]-tec_point1.x)+
-                          (x[tec_point_num1*3+1]-tec_point1.y)*(x[tec_point_num1*3+1]-tec_point1.y)+
-                          (x[tec_point_num1*3+2]-tec_point1.z)*(x[tec_point_num1*3+2]-tec_point1.z);
-
-          numerator2_minus=(tec_point2.x-tec_point1.x)*(x[tec_point_num2*3]-tec_point1.x)+
-                     (tec_point2.y-tec_point1.y)*(x[tec_point_num2*3+1]-tec_point1.y)+
-                     (tec_point2.z-tec_point1.z)*(x[tec_point_num2*3+2]-tec_point1.z);
-
-          numenator2_plus=(x[tec_point_num2*3]-tec_point1.x)*(x[tec_point_num2*3]-tec_point1.x)+
-                          (x[tec_point_num2*3+1]-tec_point1.y)*(x[tec_point_num2*3+1]-tec_point1.y)+
-                          (x[tec_point_num2*3+2]-tec_point1.z)*(x[tec_point_num2*3+2]-tec_point1.z);
-
-          denominator=(tec_point2.x-tec_point1.x)*(tec_point2.x-tec_point1.x)+
-                      (tec_point2.y-tec_point1.y)*(tec_point2.y-tec_point1.y)+
-                      (tec_point2.z-tec_point1.z)*(tec_point2.z-tec_point1.z);
-
-          res=(numenator1_plus+numenator2_plus)-(numerator1_minus*numerator1_minus+numerator2_minus*numerator2_minus)/denominator;
-
-
-          return my_coeff*res;
-
-
-
-      };
-      part_functional_vector.push_back(tec_functional);
-
-  }
-  my_functional=[part_functional_vector](int n,const Number* x)
-  {
-    Number res=0.;
-    for(auto funct=std::begin(part_functional_vector);funct!=std::end(part_functional_vector);++funct)
-    {
-        res=res+(*funct)(n,x);
-    }
-    return res;
-  };
-  int planes_index_start=3*(int)my_pol.points_list.size();
-  for(int i=0;i<my_pol.facets_list.size();i++)
-  {
-      std::set<int> knowing_points;
-      for(auto edg=std::begin(my_pol.facets_list[i].edges);edg!=std::end(my_pol.facets_list[i].edges);++edg)
-      {
-          int point_ind1,point_ind2;
-          point_ind1=my_pol.edges_list[(*edg)].coord[0];
-          point_ind2=my_pol.edges_list[(*edg)].coord[1];
-
-          if(knowing_points.find(point_ind1)==std::end(knowing_points))
-          {
-              part_support_index={point_ind1*3,point_ind1*3+1,point_ind1*3+2,
-                                  planes_index_start+i*4,planes_index_start+i*4+1,
-                                  planes_index_start+i*4+2,planes_index_start+i*4+3};
-              arr_g.push_back(
-                                [point_ind1,i,planes_index_start](int n, const Number* x)
-                                {
-                                    return x[planes_index_start+i*4]*x[point_ind1*3]+
-                                           x[planes_index_start+i*4+1]*x[point_ind1*3+1]+
-                                           x[planes_index_start+i*4+2]*x[point_ind1*3+2]+
-                                           x[planes_index_start+i*4+3];
-                                }
-                             );
-              knowing_points.insert(point_ind1);
-              support_index.push_back(part_support_index);
-          }
-          if(knowing_points.find(point_ind2)==std::end(knowing_points))
-          {
-              part_support_index={point_ind2*3,point_ind2*3+1,point_ind2*3+2,
-                                  planes_index_start+i*4,planes_index_start+i*4+1,
-                                  planes_index_start+i*4+2,planes_index_start+i*4+3};
-              arr_g.push_back(
-                                [point_ind2,i,planes_index_start](int n, const Number* x)
-                                {
-                                    return x[planes_index_start+i*4]*x[point_ind2*3]+
-                                           x[planes_index_start+i*4+1]*x[point_ind2*3+1]+
-                                           x[planes_index_start+i*4+2]*x[point_ind2*3+2]+
-                                           x[planes_index_start+i*4+3];
-                                }
-                             );
-              knowing_points.insert(point_ind2);
-              support_index.push_back(part_support_index);
-          }
-      }
-      part_support_index={planes_index_start+i*4,planes_index_start+i*4+1,planes_index_start+i*4+2};
-      arr_g.push_back(
-                        [i,planes_index_start](int n, const Number* x)
-                        {
-                            return x[planes_index_start+i*4]*x[planes_index_start+i*4]+
-                                   x[planes_index_start+i*4+1]*x[planes_index_start+i*4+1]+
-                                   x[planes_index_start+i*4+2]*x[planes_index_start+i*4+2]-1.;
-
-                        }
-                     );
-      support_index.push_back(part_support_index);
-  }
-  for(auto ind=std::begin(support_index);ind!=std::end(support_index);++ind)
-  {
-      total_nonzero_jac+=(int)ind->size();
-  }
+  construct_model();
   //printf("total=%d\n",total_nonzero_jac);
   // The problem described in MyNLP.hpp has 2 variables, x1, & x2,
   n = 3*(int)my_pol.points_list.size()+4*(int)my_pol.facets_list.size();
@@ -252,14 +111,14 @@ bool MyNLP::get_starting_point(Index n, bool init_x, Number* x,
   //    x[0] = 0.5;
   //    x[1] = 1.5;
 
-  for(int i=0;i<my_pol.points_list.size();i++)
+  for(int i=0;i<(int)my_pol.points_list.size();i++)
   {
       x[i*3+0]=my_pol.points_list[i].x;
       x[i*3+1]=my_pol.points_list[i].y;
       x[i*3+2]=my_pol.points_list[i].z;
   }
   int planes_index_start=3*(int)my_pol.points_list.size();
-  for(int i=0;i<my_pol.facets_list.size();i++)
+  for(int i=0;i<(int)my_pol.facets_list.size();i++)
   {
       x[planes_index_start+i*4+0]=my_pol.facets_list[i].A;
       x[planes_index_start+i*4+1]=my_pol.facets_list[i].B;
@@ -378,9 +237,9 @@ void MyNLP::finalize_solution(SolverReturn status,
     point mass_center(0.,0.,0.);
     for(auto p=std::begin(my_pol.points_list);p!=std::end(my_pol.points_list);++p)
     {
-        mass_center.x+=(*p).x;
-        mass_center.y+=(*p).y;
-        mass_center.z+=(*p).z;
+        mass_center.x+=p->x;
+        mass_center.y+=p->y;
+        mass_center.z+=p->z;
     }
     mass_center.x/=(double)(my_pol.points_list.size());
     mass_center.y/=(double)(my_pol.points_list.size());
@@ -388,7 +247,7 @@ void MyNLP::finalize_solution(SolverReturn status,
     int planes_index_start=3*(int)my_pol.points_list.size();
     std::vector<plane> planes;
     //printf("center: %f %f %f\n",mass_center.x,mass_center.y,mass_center.z);
-    for(int i=0;i<my_pol.facets_list.size();i++)
+    for(int i=0;i<(int)my_pol.facets_list.size();i++)
     {
         //printf("plane: %f %f %f %f\n",x[planes_index_start+i*4+0],x[planes_index_start+i*4+1],x[planes_index_start+i*4+2],x[planes_index_start+i*4+3]);
         if(x[planes_index_start+i*4+0]*mass_center.x+
@@ -415,6 +274,10 @@ void MyNLP::finalize_solution(SolverReturn status,
     //printf("%d %d %d\n",my_pol.points_list.size(),my_pol.edges_list.size(),my_pol.facets_list.size());
 
     my_pol.print();
+    for(auto funct=std::begin(part_functional_vector);funct!=std::end(part_functional_vector);++funct)
+    {
+        printf("%f\n",(*funct)(n,x));
+    }
   // here is where we would store the solution to variables, or write to a file, etc
   // so we could use the solution. Since the solution is displayed to the console,
   // we currently do nothing here.
@@ -445,4 +308,141 @@ Number df(std::function<Number(int,const Number*)> f,int n,const Number*x,int i)
     delete[]x2;
     return res;
 }
+void construct_model()
+{
+    for(auto edg=std::begin(my_pol.edges_list);edg!=std::end(my_pol.edges_list);++edg)
+    {
+        points_for_edges[0].push_back(my_pol.points_list[edg->coord[0]]);
+        points_for_edges[1].push_back(my_pol.points_list[edg->coord[1]]);
+    }
+    for(int i=0;i<(int)my_pol.edges_list.size();i++)
+    {
+        coeffs.push_back(0.);
+    }
+    FILE*fp=fopen("input.txt","rw");
+    FILE*fp1=fopen("draw_cor_edges.txt","w");
+    int siz,num1,num2,tec_num;
+    double xx,yy,zz;
+    fscanf(fp,"%d",&siz);
+    for(int i=0;i<siz;i++)
+    {
+        fscanf(fp,"%d %d",&num1,&num2);
+        tec_num=my_pol.get_edge_num_by_two_facets(my_pol.facets_list[num1],my_pol.facets_list[num2]);
+        fscanf(fp,"%lf %lf %lf",&xx,&yy,&zz);
+        fprintf(fp1,"%f %f %f\n",xx,yy,zz);
+        points_for_edges[0][tec_num]=point(xx,yy,zz);
+        fscanf(fp,"%lf %lf %lf",&xx,&yy,&zz);
+        fprintf(fp1,"%f %f %f   \n   \n\n",xx,yy,zz);
+        points_for_edges[1][tec_num]=point(xx,yy,zz);
+        coeffs[tec_num]=1.;
+    }
 
+    fclose(fp);
+    fclose(fp1);
+
+    for(int i=0;i<(int)points_for_edges[0].size();i++)
+    {
+        point tec_point1=points_for_edges[0][i];
+        point tec_point2=points_for_edges[1][i];
+        int tec_point_num1=my_pol.edges_list[i].coord[0];
+        int tec_point_num2=my_pol.edges_list[i].coord[1];
+        double my_coeff=coeffs[i];
+        std::function<Number(int,const Number*)> tec_functional=
+        [my_coeff,tec_point1,tec_point2,tec_point_num1,tec_point_num2](int n, const Number* x)
+        {
+            Number res=0.;
+            Number numerator1_minus,numerator2_minus,numenator1_plus,numenator2_plus,denominator;
+            //printf("%f %f %f %f %f %f\n",tec_point1.x,tec_point1.y,tec_point1.z,tec_point2.x,tec_point2.y,tec_point2.z);
+            numerator1_minus=(tec_point2-tec_point1)*
+                             (point(x[tec_point_num1*3],x[tec_point_num1*3+1],x[tec_point_num1*3+2])-tec_point1);
+
+            numenator1_plus=(point(x[tec_point_num1*3],x[tec_point_num1*3+1],x[tec_point_num1*3+2])-tec_point1)*
+                            (point(x[tec_point_num1*3],x[tec_point_num1*3+1],x[tec_point_num1*3+2])-tec_point1);
+
+            numerator2_minus=(tec_point2-tec_point1)*
+                             (point(x[tec_point_num2*3],x[tec_point_num2*3+1],x[tec_point_num2*3+2])-tec_point1);
+
+            numenator2_plus=(point(x[tec_point_num2*3],x[tec_point_num2*3+1],x[tec_point_num2*3+2])-tec_point1)*
+                            (point(x[tec_point_num2*3],x[tec_point_num2*3+1],x[tec_point_num2*3+2])-tec_point1);
+
+            denominator=(tec_point2-tec_point1)*(tec_point2-tec_point1);
+
+            res=(numenator1_plus+numenator2_plus)-(numerator1_minus*numerator1_minus+numerator2_minus*numerator2_minus)/denominator;
+
+            return my_coeff*res;
+
+        };
+        part_functional_vector.push_back(tec_functional);
+
+    }
+    my_functional=[part_functional_vector](int n,const Number* x)
+    {
+      Number res=0.;
+      for(auto funct=std::begin(part_functional_vector);funct!=std::end(part_functional_vector);++funct)
+      {
+          res=res+(*funct)(n,x);
+      }
+      return res;
+    };
+    int planes_index_start=3*(int)my_pol.points_list.size();
+    for(int i=0;i<(int)my_pol.facets_list.size();i++)
+    {
+        std::set<int> knowing_points;
+        for(auto edg=std::begin(my_pol.facets_list[i].edges);edg!=std::end(my_pol.facets_list[i].edges);++edg)
+        {
+            int point_ind1,point_ind2;
+            point_ind1=my_pol.edges_list[(*edg)].coord[0];
+            point_ind2=my_pol.edges_list[(*edg)].coord[1];
+
+            if(knowing_points.find(point_ind1)==std::end(knowing_points))
+            {
+                part_support_index={point_ind1*3,point_ind1*3+1,point_ind1*3+2,
+                                    planes_index_start+i*4,planes_index_start+i*4+1,
+                                    planes_index_start+i*4+2,planes_index_start+i*4+3};
+                arr_g.push_back(
+                                  [point_ind1,i,planes_index_start](int n, const Number* x)
+                                  {
+                                      return x[planes_index_start+i*4]*x[point_ind1*3]+
+                                             x[planes_index_start+i*4+1]*x[point_ind1*3+1]+
+                                             x[planes_index_start+i*4+2]*x[point_ind1*3+2]+
+                                             x[planes_index_start+i*4+3];
+                                  }
+                               );
+                knowing_points.insert(point_ind1);
+                support_index.push_back(part_support_index);
+            }
+            if(knowing_points.find(point_ind2)==std::end(knowing_points))
+            {
+                part_support_index={point_ind2*3,point_ind2*3+1,point_ind2*3+2,
+                                    planes_index_start+i*4,planes_index_start+i*4+1,
+                                    planes_index_start+i*4+2,planes_index_start+i*4+3};
+                arr_g.push_back(
+                                  [point_ind2,i,planes_index_start](int n, const Number* x)
+                                  {
+                                      return x[planes_index_start+i*4]*x[point_ind2*3]+
+                                             x[planes_index_start+i*4+1]*x[point_ind2*3+1]+
+                                             x[planes_index_start+i*4+2]*x[point_ind2*3+2]+
+                                             x[planes_index_start+i*4+3];
+                                  }
+                               );
+                knowing_points.insert(point_ind2);
+                support_index.push_back(part_support_index);
+            }
+        }
+        part_support_index={planes_index_start+i*4,planes_index_start+i*4+1,planes_index_start+i*4+2};
+        arr_g.push_back(
+                          [i,planes_index_start](int n, const Number* x)
+                          {
+                              return x[planes_index_start+i*4]*x[planes_index_start+i*4]+
+                                     x[planes_index_start+i*4+1]*x[planes_index_start+i*4+1]+
+                                     x[planes_index_start+i*4+2]*x[planes_index_start+i*4+2]-1.;
+
+                          }
+                       );
+        support_index.push_back(part_support_index);
+    }
+    for(auto ind=std::begin(support_index);ind!=std::end(support_index);++ind)
+    {
+        total_nonzero_jac+=(int)ind->size();
+    }
+}

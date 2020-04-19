@@ -1,0 +1,45 @@
+#!/bin/bash
+g++ 1.cpp -o prog
+for i in {1..10}
+do
+    ./prog
+    ./cpp_example
+    gnuplot> load 'animator.gp'
+    if ! test -d images/$i; then
+    mkdir images/$i
+    fi
+    cp input.txt images/$i/input.txt
+    cp out.txt images/$i/out.txt
+    cp input.png images/$i/input.png
+    cp out.png images/$i/out.png
+done
+g++ 2.cpp -o prog
+for i in {11..20}
+do
+    ./prog
+    ./cpp_example
+    gnuplot> load 'animator.gp'
+    if ! test -d images/$i; then
+    mkdir images/$i
+    fi
+    cp input.txt images/$i/input.txt
+    cp out.txt images/$i/out.txt
+    cp input.png images/$i/input.png
+    cp out.png images/$i/out.png
+done
+g++ 3.cpp -o prog
+for i in {21..30}
+do
+    ./prog
+    ./cpp_example
+    gnuplot> load 'animator.gp'
+    if ! test -d images/$i; then
+    mkdir images/$i
+    fi
+    cp input.txt images/$i/input.txt
+    cp out.txt images/$i/out.txt
+    cp input.png images/$i/input.png
+    cp out.png images/$i/out.png
+done
+
+
