@@ -25,7 +25,7 @@ std::vector<std::vector<int>> support_index;
 std::vector<int> part_support_index;
 std::vector<std::function<Number(int,const Number*)>> part_functional_vector;
 std::function<Number(int,const Number*)> my_functional;
-polyhedron my_pol("start_model.txt");
+polyhedron my_pol("new_big_initpoly.txt");
 std::vector<point> points_for_edges[2];
 std::vector<double> coeffs;
 int total_nonzero_jac=0;
@@ -274,10 +274,12 @@ void MyNLP::finalize_solution(SolverReturn status,
     //printf("%d %d %d\n",my_pol.points_list.size(),my_pol.edges_list.size(),my_pol.facets_list.size());
 
     my_pol.print();
+    FILE*fp=fopen("error.txt","w");
     for(auto funct=std::begin(part_functional_vector);funct!=std::end(part_functional_vector);++funct)
     {
-        printf("%f\n",(*funct)(n,x));
+        fprintf(fp,"%f\n",(*funct)(n,x));
     }
+    fclose(fp);
   // here is where we would store the solution to variables, or write to a file, etc
   // so we could use the solution. Since the solution is displayed to the console,
   // we currently do nothing here.
@@ -317,9 +319,9 @@ void construct_model()
     }
     for(int i=0;i<(int)my_pol.edges_list.size();i++)
     {
-        coeffs.push_back(0.);
+        coeffs.push_back(0.1);
     }
-    FILE*fp=fopen("input.txt","rw");
+    FILE*fp=fopen("big_corred.txt","rw");
     FILE*fp1=fopen("draw_cor_edges.txt","w");
     int siz,num1,num2,tec_num;
     double xx,yy,zz;
