@@ -25,7 +25,7 @@ std::vector<std::vector<int>> support_index;
 std::vector<int> part_support_index;
 std::vector<std::function<Number(int,const Number*)>> part_functional_vector;
 std::function<Number(int,const Number*)> my_functional;
-polyhedron my_pol("new_big_initpoly.txt");
+polyhedron my_pol("new_big_initpoly_2.txt");
 std::vector<point> points_for_edges[2];
 std::vector<double> coeffs;
 int total_nonzero_jac=0;
@@ -321,7 +321,7 @@ void construct_model()
     {
         coeffs.push_back(0.1);
     }
-    FILE*fp=fopen("big_corred.txt","rw");
+    FILE*fp=fopen("big_corred_2.txt","rw");
     FILE*fp1=fopen("draw_cor_edges.txt","w");
     int siz,num1,num2,tec_num;
     double xx,yy,zz;

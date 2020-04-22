@@ -3,8 +3,8 @@
 
 int main()
 {
-    FILE*in=fopen("big_initpoly.txt","r");
-    FILE*out=fopen("new_big_initpoly.txt","w");
+    FILE*in=fopen("big_initpoly_2.txt","r");
+    FILE*out=fopen("new_big_initpoly_2.txt","w");
     int *index;
     std::pair<int,int>*edges;
     int n1,n2,n3,sides_num,tec_num,p1,p2,oth1,oth2;
@@ -81,7 +81,7 @@ int main()
         fprintf(out,"\n");
     }
     printf("edges_num=%d\n",cor_num);
-    polyhedron my_pol("new_big_initpoly.txt");
+    polyhedron my_pol("new_big_initpoly_2.txt");
     printf("%d %d %d\n",my_pol.points_list.size(),my_pol.edges_list.size(),my_pol.facets_list.size());
     my_pol.print();
     fclose(in);
