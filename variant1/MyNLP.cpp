@@ -25,7 +25,7 @@ std::vector<std::vector<int>> support_index;
 std::vector<int> part_support_index;
 std::vector<std::function<Number(int,const Number*)>> part_functional_vector;
 std::function<Number(int,const Number*)> my_functional;
-polyhedron my_pol("new_big_initpoly_2.txt");
+polyhedron my_pol("new_big_initpoly_1.txt");
 std::vector<point> points_for_edges[2];
 std::vector<double> coeffs;
 int total_nonzero_jac=0;
@@ -227,13 +227,13 @@ void MyNLP::finalize_solution(SolverReturn status,
     {
         printf("x=%f y=%f z=%f\n",(double) x[3*i+0],(double) x[3*i+1],(double) x[3*i+2]);
     }*/
-    /*for(int i=0;i<my_pol.points_list.size();i++)
+    for(int i=0;i<my_pol.points_list.size();i++)
     {
-        printf("%f %f %f\n",x[i*3+0],x[i*3+1],x[i*3+2]);
+        //printf("%f %f %f\n",x[i*3+0],x[i*3+1],x[i*3+2]);
         my_pol.points_list[i]=point(x[i*3+0],x[i*3+1],x[i*3+2]);
 
-    }*/
-    printf("%f\n",my_functional(n,x));
+    }
+    /*printf("%f\n",my_functional(n,x));
     point mass_center(0.,0.,0.);
     for(auto p=std::begin(my_pol.points_list);p!=std::end(my_pol.points_list);++p)
     {
@@ -271,6 +271,7 @@ void MyNLP::finalize_solution(SolverReturn status,
         }
     }
     my_pol=construct_polyhedron_by_planes_list(&planes);
+    */
     //printf("%d %d %d\n",my_pol.points_list.size(),my_pol.edges_list.size(),my_pol.facets_list.size());
 
     my_pol.print();
@@ -321,7 +322,7 @@ void construct_model()
     {
         coeffs.push_back(0.1);
     }
-    FILE*fp=fopen("big_corred_2.txt","rw");
+    FILE*fp=fopen("big_corred_1.txt","rw");
     FILE*fp1=fopen("draw_cor_edges.txt","w");
     int siz,num1,num2,tec_num;
     double xx,yy,zz;
