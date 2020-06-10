@@ -17,8 +17,8 @@ using namespace Ipopt;
 int main(int argv, char* argc[])
 {
   // Create an instance of your nlp...
+  //SmartPtr<TNLP> mynlp = new MyNLP(argc[1],argc[2],argc[3]);
   SmartPtr<TNLP> mynlp = new MyNLP();
-
   // Create an instance of the IpoptApplication
   //
   // We are using the factory, since this allows us to compile this

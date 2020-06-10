@@ -25,7 +25,7 @@ std::vector<std::vector<int>> support_index;
 std::vector<int> part_support_index;
 std::vector<std::function<Number(int,const Number*)>> part_functional_vector;
 std::function<Number(int,const Number*)> my_functional;
-polyhedron my_pol("new_big_initpoly_2.txt");
+polyhedron my_pol("new_big_initpoly_8.txt");
 std::vector<point> points_for_edges[2];
 std::vector<double> coeffs;
 std::set<int> changed_facets_set;
@@ -256,9 +256,10 @@ void MyNLP::finalize_solution(SolverReturn status,
     int planes_index_start=6*(int)changed_edges_set.size();
     std::vector<plane> planes;
     //printf("center: %f %f %f\n",mass_center.x,mass_center.y,mass_center.z);
-    for(int i=0;i<(int)my_pol.facets_list.size();i++)
+    //std::vector<int> kris(changed_facets_set.begin(),changed_facets_set.end());
+    printf("%d %d\n",(int)my_pol.facets_list.size(),(int)changed_facets_set.size());
+    for(int i=0;i<(int)changed_facets_set.size();i++)
     {
-        //printf("plane: %f %f %f %f\n",x[planes_index_start+i*4+0],x[planes_index_start+i*4+1],x[planes_index_start+i*4+2],x[planes_index_start+i*4+3]);
         if(x[planes_index_start+i*4+0]*mass_center.x+
            x[planes_index_start+i*4+1]*mass_center.y+
            x[planes_index_start+i*4+2]*mass_center.z+
@@ -277,6 +278,33 @@ void MyNLP::finalize_solution(SolverReturn status,
                                    x[planes_index_start+i*4+1],
                                    x[planes_index_start+i*4+2],
                                    x[planes_index_start+i*4+3]));
+        }
+    }
+    for(int i=0;i<(int)my_pol.facets_list.size();i++)
+    {
+        if(changed_facets_set.find(i)!=std::end(changed_facets_set))
+        {
+            continue;
+        }
+        //printf("plane: %f %f %f %f\n",x[planes_index_start+i*4+0],x[planes_index_start+i*4+1],x[planes_index_start+i*4+2],x[planes_index_start+i*4+3]);
+        if(my_pol.facets_list[i].A*mass_center.x+
+           my_pol.facets_list[i].B*mass_center.y+
+           my_pol.facets_list[i].C*mass_center.z+
+           my_pol.facets_list[i].D>0)
+        {
+
+            planes.push_back(plane(-my_pol.facets_list[i].A,
+                                   -my_pol.facets_list[i].B,
+                                   -my_pol.facets_list[i].C,
+                                   -my_pol.facets_list[i].D));
+
+        }
+        else
+        {
+            planes.push_back(plane(my_pol.facets_list[i].A,
+                                   my_pol.facets_list[i].B,
+                                   my_pol.facets_list[i].C,
+                                   my_pol.facets_list[i].D));
         }
     }
     my_pol=construct_polyhedron_by_planes_list(&planes);
@@ -331,7 +359,7 @@ void construct_model()
         coeffs.push_back(0.1);
         enumerator.push_back(-1);
     }
-    FILE*fp=fopen("big_corred_2.txt","rw");
+    FILE*fp=fopen("big_corred_8.txt","rw");
     FILE*fp1=fopen("draw_cor_edges.txt","w");
     int siz,num1,num2,tec_num;
     double xx,yy,zz;

@@ -29,8 +29,14 @@ class MyNLP : public TNLP
 {
 public:
   /** default constructor */
+  char* input_model, *input_edges, *output;
   MyNLP();
-
+  /*MyNLP(char* input_model_,char* input_edges_,char* output_)
+  {
+      input_edges=input_edges_;
+      input_model=input_model_;
+      output=output_;
+  }*/
   /** default destructor */
   virtual ~MyNLP();
 
