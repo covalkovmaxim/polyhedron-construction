@@ -1,10 +1,13 @@
 #include "polyhedron.hpp"
+#include "gnuplot.hpp"
 
 std::vector<target_edge> read_target_edges(const char* filename,const polyhedron& pol,std::vector<point>* points_for_edges,std::vector<double>& coeffs);
 void jordan(double*A,double*b);
 point get_point_by_three_planes_intersection(const plane& p1,const plane& p2,const plane& p3);
 void calc_gradient(const std::vector<target_edge>& target_edges_list, const std::vector<double>& init_vars, double* gradient);
 double scalar_product(int n, double* old_dirrection, double* new_dirrection);
+void plot_hist(const polyhedron& my_pol,const std::vector<target_edge>& target_edges_list,const std::vector<double>& init_vars,const std::vector<double>& result_vars,const std::string& image_name);
+double golden_ratio_method(std::function<double (double) > func, double a, double b, double eps);
 
 int main(int argc, char** argv)
 {
@@ -16,6 +19,7 @@ int main(int argc, char** argv)
     polyhedron my_pol(argv[1]);
     std::vector<point> points_for_edges[2];
     std::vector<double> coeffs((int)my_pol.edges_list.size(),0.1);
+    std::function<double (double )> fun_for_lambda;
 
     for(auto edg=std::begin(my_pol.edges_list);edg!=std::end(my_pol.edges_list);++edg)
     {
@@ -79,6 +83,8 @@ int main(int argc, char** argv)
                                                                 };
     printf("Result %f\n", func(init_vars));
 
+    std::vector<double> init_vars_copy=init_vars;
+
     int var_num = (int)(init_vars.size());
     double* gradient = new double[var_num];
 
@@ -116,6 +122,43 @@ int main(int argc, char** argv)
     }
     while(fabs(func(init_vars)-func(next_vars)) > 1.e-8);
 
+    /*do
+    {
+        init_vars=next_vars;
+        calc_gradient(target_edges_list, init_vars, gradient);
+
+        double lambd=0.;
+        fun_for_lambda = [func, init_vars, gradient](double lambda)
+                         {
+                            std::vector<double> next_vars = init_vars;
+                            int len = next_vars.size();
+                            for(int i=0; i<len; i++)
+                            {
+                                next_vars[i] -= lambda*gradient[i];
+                            }
+                            //printf("val = %f\n", fun(new_point));
+                            return func(next_vars);
+                         };
+        lambd=golden_ratio_method(fun_for_lambda, 1.e-10, 0.1, 1.e-8);
+        for(int i=0;i<var_num;i++)
+        {
+            next_vars[i]=init_vars[i]-lambd*gradient[i];
+        }
+        for(int i=0;i<var_num/4;i++)
+        {
+            double norma = sqrt(pow(next_vars[i*4],2.)+pow(next_vars[i*4+1],2.)+pow(next_vars[i*4+2],2.));
+            if(norma>1e-10)
+            {
+                next_vars[i*4]/=norma;
+                next_vars[i*4+1]/=norma;
+                next_vars[i*4+2]/=norma;
+                next_vars[i*4+3]/=norma;
+            }
+        }
+        printf("func=%e\n", func(next_vars));
+    }
+    while(fabs(func(init_vars)-func(next_vars)) > 1.e-8);
+    */
     std::vector<plane> planes;
 
     point mass_center(0.,0.,0.);
@@ -148,6 +191,7 @@ int main(int argc, char** argv)
     {
         printf("plane: %f %f %f %f\n", plane.A, plane.B, plane.C, plane.D);
     }
+    plot_hist(my_pol,target_edges_list,init_vars_copy,next_vars,"hists.png");
     my_pol=construct_polyhedron_by_planes_list(&planes);
     my_pol.print();
 
@@ -540,4 +584,84 @@ double scalar_product(int n, double* old_dirrection, double* new_dirrection)
         res += old_dirrection[i]*new_dirrection[i];
     }
     return  res;
+}
+
+void plot_hist(const polyhedron& my_pol,const std::vector<target_edge>& target_edges_list,const std::vector<double>& init_vars,const std::vector<double>& result_vars,const std::string& image_name)
+{
+    FILE*fp=fopen("hist_data.dat","w");
+    int i=0;
+    for(auto target : target_edges_list)
+    {
+        i++;
+        int num_1=target.facet_numbers[0];
+        int num_2=target.facet_numbers[1];
+        double res_1,res_2;
+        point p_1=get_point_by_three_planes_intersection(plane(init_vars[num_1*4],init_vars[num_1*4+1],init_vars[num_1*4+2],init_vars[num_1*4+3]),
+                                                         plane(init_vars[num_2*4],init_vars[num_2*4+1],init_vars[num_2*4+2],init_vars[num_2*4+3]),
+                                                         target.normal_plane_1);
+        point p_2=get_point_by_three_planes_intersection(plane(init_vars[num_1*4],init_vars[num_1*4+1],init_vars[num_1*4+2],init_vars[num_1*4+3]),
+                                                         plane(init_vars[num_2*4],init_vars[num_2*4+1],init_vars[num_2*4+2],init_vars[num_2*4+3]),
+                                                         target.normal_plane_2);
+        res_1=target.coeff*((target.target_point_1-p_1)*(target.target_point_1-p_1)+(target.target_point_2-p_2)*(target.target_point_2-p_2));
+
+        p_1=get_point_by_three_planes_intersection(plane(result_vars[num_1*4],result_vars[num_1*4+1],result_vars[num_1*4+2],result_vars[num_1*4+3]),
+                                                         plane(result_vars[num_2*4],result_vars[num_2*4+1],result_vars[num_2*4+2],result_vars[num_2*4+3]),
+                                                         target.normal_plane_1);
+        p_2=get_point_by_three_planes_intersection(plane(result_vars[num_1*4],result_vars[num_1*4+1],result_vars[num_1*4+2],result_vars[num_1*4+3]),
+                                                         plane(result_vars[num_2*4],result_vars[num_2*4+1],result_vars[num_2*4+2],result_vars[num_2*4+3]),
+                                                         target.normal_plane_2);
+        res_2=target.coeff*((target.target_point_1-p_1)*(target.target_point_1-p_1)+(target.target_point_2-p_2)*(target.target_point_2-p_2));
+        fprintf(fp,"%d %e %e\n",i,res_1,res_2);
+    }
+    fclose(fp);
+
+    Gnuplot plot;
+
+    plot("set terminal png size 1500, 800");
+    plot("set output '"+image_name+"'");
+
+    plot("set style data histograms");
+    plot("set style histogram cluster");
+
+    plot("plot 'hist_data.dat' u 2 fs solid 0.5 lt rgb 'red', '' u 3 fs solid 0.5 lt rgb 'green'");
+
+
+}
+
+double golden_ratio_method(std::function<double (double) > func, double a, double b, double eps)
+{
+    double x1, x2, y1, y2, fi;
+    if(a>b)
+    {
+        x1=a;
+        a=b;
+        b=x1;
+    }
+    fi=(1.+sqrt(5.))/2.;
+    x1=b-(b-a)/fi;
+    x2=a+(b-a)/fi;
+    y1=func(x1);
+    y2=func(x2);
+
+    while(fabs(func(b)-func(a))>eps)
+    {
+        //printf("%f %f\n", y1, y2);
+        if(y1>y2)
+        {
+            a=x1;
+            x1=x2;
+            y1=y2;
+            x2=a+(b-a)/fi;
+            y2=func(x2);
+        }
+        else
+        {
+            b=x2;
+            x2=x1;
+            y2=y1;
+            x1=b-(b-a)/fi;
+            y1=func(x1);
+        }
+    }
+    return (a+b)/2.;
 }
