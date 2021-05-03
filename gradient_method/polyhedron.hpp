@@ -79,6 +79,7 @@ public:
         facets_list=init.facets_list;
 
     }
+    //polyhedron();
     polyhedron(double x);
     polyhedron(char*name);
     plane get_plane_by_two_edges(edge ed1,edge ed2);
