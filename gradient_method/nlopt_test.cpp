@@ -13,11 +13,14 @@
 std::vector<target_edge> read_target_edges(const char* filename,const polyhedron& pol,std::vector<point>* points_for_edges,std::vector<double>& coeffs);
 void jordan(double*A,double*b);
 point get_point_by_three_planes_intersection(const plane& p1,const plane& p2,const plane& p3);
-void calc_gradient(const std::vector<target_edge>& target_edges_list, const std::vector<double>& init_vars, double* gradient);
+
 double scalar_product(int n, double* old_dirrection, double* new_dirrection);
 void plot_hist(const polyhedron& my_pol,const std::vector<target_edge>& target_edges_list,const std::vector<double>& init_vars,const std::vector<double>& result_vars,const std::string& image_name);
 double myvfunc(const std::vector<double> &vars, std::vector<double> &grad, void *data);
 double dist_func_1(std::vector<double>& vars, const std::vector<target_edge>& target_edges_list);
+double dist_func_2(std::vector<double>& vars, const std::vector<target_edge>& target_edges_list);
+void calc_gradient_1(const std::vector<target_edge>& target_edges_list, const std::vector<double>& init_vars, double* gradient);
+void calc_gradient_2(const std::vector<target_edge>& target_edges_list, const std::vector<double>& init_vars, double* gradient);
 
 int main(int argc, char** argv)
 {
@@ -77,11 +80,14 @@ int main(int argc, char** argv)
     init_vars_copy=init_vars;
     int var_num = init_vars.size();
 
-    nlopt::opt opt(nlopt::LD_LBFGS, var_num);
+    nlopt::opt opt(nlopt::LD_SLSQP, var_num);
     opt.set_min_objective(myvfunc, (void*)&target_edges_list);
     opt.set_xtol_rel(1e-4);
+    opt.set_maxeval(10000);
     double minf;
     opt.optimize(init_vars,minf);
+
+
     printf("min=%f\n", minf);
     next_vars=init_vars;
 
@@ -240,7 +246,141 @@ point get_point_by_three_planes_intersection(const plane& p1,const plane& p2,con
     return point(b[0],b[1],b[2]);
 }
 
-void calc_gradient(const std::vector<target_edge>& target_edges_list, const std::vector<double>& init_vars, double* gradient)
+
+double scalar_product(int n, double* old_dirrection, double* new_dirrection)
+{
+    double res = 0.;
+    for(int i=0; i<n; i++)
+    {
+        res += old_dirrection[i]*new_dirrection[i];
+    }
+    return  res;
+}
+
+void plot_hist(const polyhedron& my_pol,const std::vector<target_edge>& target_edges_list,const std::vector<double>& init_vars,const std::vector<double>& result_vars,const std::string& image_name)
+{
+    FILE*fp=fopen("hist_data.dat","w");
+    int i=0;
+    for(auto target : target_edges_list)
+    {
+        i++;
+        int num_1=target.facet_numbers[0];
+        int num_2=target.facet_numbers[1];
+        double res_1,res_2;
+        point p_1=get_point_by_three_planes_intersection(plane(init_vars[num_1*4],init_vars[num_1*4+1],init_vars[num_1*4+2],init_vars[num_1*4+3]),
+                                                         plane(init_vars[num_2*4],init_vars[num_2*4+1],init_vars[num_2*4+2],init_vars[num_2*4+3]),
+                                                         target.normal_plane_1);
+        point p_2=get_point_by_three_planes_intersection(plane(init_vars[num_1*4],init_vars[num_1*4+1],init_vars[num_1*4+2],init_vars[num_1*4+3]),
+                                                         plane(init_vars[num_2*4],init_vars[num_2*4+1],init_vars[num_2*4+2],init_vars[num_2*4+3]),
+                                                         target.normal_plane_2);
+        res_1=target.coeff*((target.target_point_1-p_1)*(target.target_point_1-p_1)+(target.target_point_2-p_2)*(target.target_point_2-p_2));
+
+        p_1=get_point_by_three_planes_intersection(plane(result_vars[num_1*4],result_vars[num_1*4+1],result_vars[num_1*4+2],result_vars[num_1*4+3]),
+                                                         plane(result_vars[num_2*4],result_vars[num_2*4+1],result_vars[num_2*4+2],result_vars[num_2*4+3]),
+                                                         target.normal_plane_1);
+        p_2=get_point_by_three_planes_intersection(plane(result_vars[num_1*4],result_vars[num_1*4+1],result_vars[num_1*4+2],result_vars[num_1*4+3]),
+                                                         plane(result_vars[num_2*4],result_vars[num_2*4+1],result_vars[num_2*4+2],result_vars[num_2*4+3]),
+                                                         target.normal_plane_2);
+        res_2=target.coeff*((target.target_point_1-p_1)*(target.target_point_1-p_1)+(target.target_point_2-p_2)*(target.target_point_2-p_2));
+        fprintf(fp,"%d %e %e\n",i,res_1,res_2);
+    }
+    fclose(fp);
+
+    Gnuplot plot;
+
+    plot("set terminal png size 1500, 800");
+    plot("set output '"+image_name+"'");
+
+    plot("set style data histograms");
+    plot("set style histogram cluster");
+
+    plot("plot 'hist_data.dat' u 2 fs solid 0.5 lt rgb 'red', '' u 3 fs solid 0.5 lt rgb 'green'");
+
+
+}
+
+
+
+double myvfunc(const std::vector<double> &vars, std::vector<double> &grad, void *data)
+{
+    std::vector<target_edge>* ptr=reinterpret_cast< std::vector<target_edge>*>(data);
+    std::vector<target_edge> target_edges_list=*ptr;
+    std::vector<double> norm_vars=vars;
+    int var_num=vars.size();
+    double res=dist_func_2(norm_vars,target_edges_list);
+
+    double* gradient = new double[var_num];
+    calc_gradient_2(target_edges_list,norm_vars,gradient);
+    grad=std::vector<double>(gradient, gradient+var_num);
+    delete [] gradient;
+    return res;
+}
+
+double dist_func_1(std::vector<double>& vars, const std::vector<target_edge>& target_edges_list)
+{
+    double res=0.;
+    int var_num=vars.size();
+    for(int i=0;i<var_num/4;i++)
+    {
+        double norma = sqrt(pow(vars[i*4],2.)+pow(vars[i*4+1],2.)+pow(vars[i*4+2],2.));
+        if(norma>1e-10)
+        {
+            vars[i*4]/=norma;
+            vars[i*4+1]/=norma;
+            vars[i*4+2]/=norma;
+            vars[i*4+3]/=norma;
+        }
+    }
+    for(auto target : target_edges_list)
+    {
+        int num_1=target.facet_numbers[0];
+        int num_2=target.facet_numbers[1];
+        point p_1=get_point_by_three_planes_intersection(plane(vars[num_1*4],vars[num_1*4+1],vars[num_1*4+2],vars[num_1*4+3]),
+                                                         plane(vars[num_2*4],vars[num_2*4+1],vars[num_2*4+2],vars[num_2*4+3]),
+                                                         target.normal_plane_1);
+        point p_2=get_point_by_three_planes_intersection(plane(vars[num_1*4],vars[num_1*4+1],vars[num_1*4+2],vars[num_1*4+3]),
+                                                         plane(vars[num_2*4],vars[num_2*4+1],vars[num_2*4+2],vars[num_2*4+3]),
+                                                         target.normal_plane_2);
+        res+=target.coeff*((target.target_point_1-p_1)*(target.target_point_1-p_1)+(target.target_point_2-p_2)*(target.target_point_2-p_2));
+    }
+    printf("res=%e\n", res);
+    return res;
+}
+double dist_func_2(std::vector<double>& vars, const std::vector<target_edge>& target_edges_list)
+{
+    double res=0.;
+    int var_num=vars.size();
+    for(int i=0;i<var_num/4;i++)
+    {
+        double norma = sqrt(pow(vars[i*4],2.)+pow(vars[i*4+1],2.)+pow(vars[i*4+2],2.));
+        if(norma>1e-10)
+        {
+            vars[i*4]/=norma;
+            vars[i*4+1]/=norma;
+            vars[i*4+2]/=norma;
+            vars[i*4+3]/=norma;
+        }
+        else
+        {
+            printf("zero norma\n");
+        }
+    }
+    for(auto target : target_edges_list)
+    {
+        int num_1=target.facet_numbers[0];
+        int num_2=target.facet_numbers[1];
+        point p_1=target.target_point_1;
+        point p_2=target.target_point_2;
+        res+=target.coeff*(pow(vars[num_1*4]*p_1.x+vars[num_1*4+1]*p_1.y+vars[num_1*4+2]*p_1.z+vars[num_1*4+3],2.)+
+                           pow(vars[num_1*4]*p_2.x+vars[num_1*4+1]*p_2.y+vars[num_1*4+2]*p_2.z+vars[num_1*4+3],2.)+
+                           pow(vars[num_2*4]*p_1.x+vars[num_2*4+1]*p_1.y+vars[num_2*4+2]*p_1.z+vars[num_2*4+3],2.)+
+                           pow(vars[num_2*4]*p_2.x+vars[num_2*4+1]*p_2.y+vars[num_2*4+2]*p_2.z+vars[num_2*4+3],2.));
+    }
+    printf("res=%e\n", res);
+    return res;
+}
+
+void calc_gradient_1(const std::vector<target_edge>& target_edges_list, const std::vector<double>& init_vars, double* gradient)
 {
     int var_num = (int)init_vars.size();
     for(int i=0; i<var_num; i++)
@@ -500,101 +640,55 @@ void calc_gradient(const std::vector<target_edge>& target_edges_list, const std:
 
 }
 
-double scalar_product(int n, double* old_dirrection, double* new_dirrection)
+void calc_gradient_2(const std::vector<target_edge>& target_edges_list, const std::vector<double>& init_vars, double* gradient)
 {
-    double res = 0.;
-    for(int i=0; i<n; i++)
+    int var_num = (int)init_vars.size();
+    for(int i=0; i<var_num; i++)
     {
-        res += old_dirrection[i]*new_dirrection[i];
+        gradient[i]=0.;
+
     }
-    return  res;
-}
 
-void plot_hist(const polyhedron& my_pol,const std::vector<target_edge>& target_edges_list,const std::vector<double>& init_vars,const std::vector<double>& result_vars,const std::string& image_name)
-{
-    FILE*fp=fopen("hist_data.dat","w");
-    int i=0;
-    for(auto target : target_edges_list)
-    {
-        i++;
-        int num_1=target.facet_numbers[0];
-        int num_2=target.facet_numbers[1];
-        double res_1,res_2;
-        point p_1=get_point_by_three_planes_intersection(plane(init_vars[num_1*4],init_vars[num_1*4+1],init_vars[num_1*4+2],init_vars[num_1*4+3]),
-                                                         plane(init_vars[num_2*4],init_vars[num_2*4+1],init_vars[num_2*4+2],init_vars[num_2*4+3]),
-                                                         target.normal_plane_1);
-        point p_2=get_point_by_three_planes_intersection(plane(init_vars[num_1*4],init_vars[num_1*4+1],init_vars[num_1*4+2],init_vars[num_1*4+3]),
-                                                         plane(init_vars[num_2*4],init_vars[num_2*4+1],init_vars[num_2*4+2],init_vars[num_2*4+3]),
-                                                         target.normal_plane_2);
-        res_1=target.coeff*((target.target_point_1-p_1)*(target.target_point_1-p_1)+(target.target_point_2-p_2)*(target.target_point_2-p_2));
-
-        p_1=get_point_by_three_planes_intersection(plane(result_vars[num_1*4],result_vars[num_1*4+1],result_vars[num_1*4+2],result_vars[num_1*4+3]),
-                                                         plane(result_vars[num_2*4],result_vars[num_2*4+1],result_vars[num_2*4+2],result_vars[num_2*4+3]),
-                                                         target.normal_plane_1);
-        p_2=get_point_by_three_planes_intersection(plane(result_vars[num_1*4],result_vars[num_1*4+1],result_vars[num_1*4+2],result_vars[num_1*4+3]),
-                                                         plane(result_vars[num_2*4],result_vars[num_2*4+1],result_vars[num_2*4+2],result_vars[num_2*4+3]),
-                                                         target.normal_plane_2);
-        res_2=target.coeff*((target.target_point_1-p_1)*(target.target_point_1-p_1)+(target.target_point_2-p_2)*(target.target_point_2-p_2));
-        fprintf(fp,"%d %e %e\n",i,res_1,res_2);
-    }
-    fclose(fp);
-
-    Gnuplot plot;
-
-    plot("set terminal png size 1500, 800");
-    plot("set output '"+image_name+"'");
-
-    plot("set style data histograms");
-    plot("set style histogram cluster");
-
-    plot("plot 'hist_data.dat' u 2 fs solid 0.5 lt rgb 'red', '' u 3 fs solid 0.5 lt rgb 'green'");
-
-
-}
-
-
-
-double myvfunc(const std::vector<double> &vars, std::vector<double> &grad, void *data)
-{
-    std::vector<target_edge>* ptr=reinterpret_cast< std::vector<target_edge>*>(data);
-    std::vector<target_edge> target_edges_list=*ptr;
-    std::vector<double> norm_vars=vars;
-    int var_num=vars.size();
-    double res=dist_func_1(norm_vars,target_edges_list);
-
-    double* gradient = new double[var_num];
-    calc_gradient(target_edges_list,norm_vars,gradient);
-    grad=std::vector<double>(gradient, gradient + var_num);
-    delete [] gradient;
-    return res;
-}
-
-double dist_func_1(std::vector<double>& vars, const std::vector<target_edge>& target_edges_list)
-{
-    double res=0.;
-    int var_num=vars.size();
-    for(int i=0;i<var_num/4;i++)
-    {
-        double norma = sqrt(pow(vars[i*4],2.)+pow(vars[i*4+1],2.)+pow(vars[i*4+2],2.));
-        if(norma>1e-10)
-        {
-            vars[i*4]/=norma;
-            vars[i*4+1]/=norma;
-            vars[i*4+2]/=norma;
-            vars[i*4+3]/=norma;
-        }
-    }
     for(auto target : target_edges_list)
     {
         int num_1=target.facet_numbers[0];
         int num_2=target.facet_numbers[1];
-        point p_1=get_point_by_three_planes_intersection(plane(vars[num_1*4],vars[num_1*4+1],vars[num_1*4+2],vars[num_1*4+3]),
-                                                         plane(vars[num_2*4],vars[num_2*4+1],vars[num_2*4+2],vars[num_2*4+3]),
-                                                         target.normal_plane_1);
-        point p_2=get_point_by_three_planes_intersection(plane(vars[num_1*4],vars[num_1*4+1],vars[num_1*4+2],vars[num_1*4+3]),
-                                                         plane(vars[num_2*4],vars[num_2*4+1],vars[num_2*4+2],vars[num_2*4+3]),
-                                                         target.normal_plane_2);
-        res+=target.coeff*((target.target_point_1-p_1)*(target.target_point_1-p_1)+(target.target_point_2-p_2)*(target.target_point_2-p_2));
+        //printf("%d %d\n",num_1,num_2);
+
+        point p_1=target.target_point_1;
+        point p_2=target.target_point_2;
+
+        gradient[4*num_1+0]+=2.*target.coeff*(p_1.x*(init_vars[num_1*4]*p_1.x+init_vars[num_1*4+1]*p_1.y+init_vars[num_1*4+2]*p_1.z+init_vars[num_1*4+3])+
+                                              p_2.x*(init_vars[num_1*4]*p_2.x+init_vars[num_1*4+1]*p_2.y+init_vars[num_1*4+2]*p_2.z+init_vars[num_1*4+3]));
+
+        gradient[4*num_1+1]+=2.*target.coeff*(p_1.y*(init_vars[num_1*4]*p_1.x+init_vars[num_1*4+1]*p_1.y+init_vars[num_1*4+2]*p_1.z+init_vars[num_1*4+3])+
+                                              p_2.y*(init_vars[num_1*4]*p_2.x+init_vars[num_1*4+1]*p_2.y+init_vars[num_1*4+2]*p_2.z+init_vars[num_1*4+3]));
+
+        gradient[4*num_1+2]+=2.*target.coeff*(p_1.z*(init_vars[num_1*4]*p_1.x+init_vars[num_1*4+1]*p_1.y+init_vars[num_1*4+2]*p_1.z+init_vars[num_1*4+3])+
+                                              p_2.z*(init_vars[num_1*4]*p_2.x+init_vars[num_1*4+1]*p_2.y+init_vars[num_1*4+2]*p_2.z+init_vars[num_1*4+3]));
+
+        gradient[4*num_1+3]+=2.*target.coeff*(init_vars[num_1*4]*p_1.x+init_vars[num_1*4+1]*p_1.y+init_vars[num_1*4+2]*p_1.z+init_vars[num_1*4+3]+
+                                              init_vars[num_1*4]*p_2.x+init_vars[num_1*4+1]*p_2.y+init_vars[num_1*4+2]*p_2.z+init_vars[num_1*4+3]);
+
+        ////////////////////////////
+
+        gradient[4*num_2+0]+=2.*target.coeff*(p_1.x*(init_vars[num_2*4]*p_1.x+init_vars[num_2*4+1]*p_1.y+init_vars[num_2*4+2]*p_1.z+init_vars[num_2*4+3])+
+                                              p_2.x*(init_vars[num_2*4]*p_2.x+init_vars[num_2*4+1]*p_2.y+init_vars[num_2*4+2]*p_2.z+init_vars[num_2*4+3]));
+
+        gradient[4*num_2+1]+=2.*target.coeff*(p_1.y*(init_vars[num_2*4]*p_1.x+init_vars[num_2*4+1]*p_1.y+init_vars[num_2*4+2]*p_1.z+init_vars[num_2*4+3])+
+                                              p_2.y*(init_vars[num_2*4]*p_2.x+init_vars[num_2*4+1]*p_2.y+init_vars[num_2*4+2]*p_2.z+init_vars[num_2*4+3]));
+
+        gradient[4*num_2+2]+=2.*target.coeff*(p_1.z*(init_vars[num_2*4]*p_1.x+init_vars[num_2*4+1]*p_1.y+init_vars[num_2*4+2]*p_1.z+init_vars[num_2*4+3])+
+                                              p_2.z*(init_vars[num_2*4]*p_2.x+init_vars[num_2*4+1]*p_2.y+init_vars[num_2*4+2]*p_2.z+init_vars[num_2*4+3]));
+
+        gradient[4*num_2+3]+=2.*target.coeff*(init_vars[num_2*4]*p_1.x+init_vars[num_2*4+1]*p_1.y+init_vars[num_2*4+2]*p_1.z+init_vars[num_2*4+3]+
+                                              init_vars[num_2*4]*p_2.x+init_vars[num_2*4+1]*p_2.y+init_vars[num_2*4+2]*p_2.z+init_vars[num_2*4+3]);
+
     }
-    return res;
+    /*for(int i=0; i<var_num; i++)
+    {
+        printf("%f ",gradient[i]);
+    }
+    printf("\n");*/
+
 }

@@ -322,12 +322,18 @@ plane get_plane_by_three_points(double x1,double y1,double z1,double x2,double y
 }
 plane polyhedron::get_plane_by_two_edges(edge ed1, edge ed2)
 {
-    plane res(points_list[ed1.coord[0]],points_list[ed1.coord[1]],points_list[ed2.coord[0]]);
+    int index=1;
+    if(ed1.coord[0]!=ed2.coord[0] && ed1.coord[1]!=ed2.coord[0])
+    {
+        index=0;
+    }
+    plane res(points_list[ed1.coord[0]],points_list[ed1.coord[1]],points_list[ed2.coord[index]]);
     if(fabs(res.A)+fabs(res.B)+fabs(res.C)<1.e-9)
     {
-        res=plane(points_list[ed1.coord[0]],points_list[ed1.coord[1]],points_list[ed2.coord[1]]);
+        res=plane(points_list[ed1.coord[0]],points_list[ed1.coord[1]],points_list[ed2.coord[1-index]]);
     }
     return res;
+
 }
 int polyhedron::get_edge_num_by_two_facets(facet f1,facet f2) const
 {
