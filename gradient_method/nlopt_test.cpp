@@ -82,7 +82,7 @@ int main(int argc, char** argv)
 
     nlopt::opt opt(nlopt::LD_SLSQP, var_num);
     opt.set_min_objective(myvfunc, (void*)&target_edges_list);
-    opt.set_xtol_rel(1e-4);
+    opt.set_xtol_rel(1e-5);
     opt.set_maxeval(10000);
     double minf;
     opt.optimize(init_vars,minf);
