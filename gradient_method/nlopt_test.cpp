@@ -4,7 +4,7 @@
 #include <cmath>
 #include <iomanip>
 #include <nlopt.hpp>
-
+#include <time.h>
 #include "polyhedron.hpp"
 #include "gnuplot.hpp"
 
@@ -22,9 +22,11 @@ double dist_func_2(std::vector<double>& vars, const std::vector<target_edge>& ta
 void calc_gradient_1(const std::vector<target_edge>& target_edges_list, const std::vector<double>& init_vars, double* gradient);
 void calc_gradient_2(const std::vector<target_edge>& target_edges_list, const std::vector<double>& init_vars, double* gradient);
 
+int iteration_num=0;
+
 int main(int argc, char** argv)
 {
-    if(3!=argc)
+    if(4!=argc)
     {
         printf("Correct arguments initpoly_filename corred_filename\n");
         return -1;
@@ -80,12 +82,14 @@ int main(int argc, char** argv)
     init_vars_copy=init_vars;
     int var_num = init_vars.size();
 
-    nlopt::opt opt(nlopt::LD_SLSQP, var_num);
+    nlopt::opt opt(nlopt::LD_LBFGS, var_num);
     opt.set_min_objective(myvfunc, (void*)&target_edges_list);
-    opt.set_xtol_rel(1e-5);
-    opt.set_maxeval(10000);
+    opt.set_xtol_rel(1e-7);
+    opt.set_maxeval(atoi(argv[3]));
     double minf;
+    double start=clock();
     opt.optimize(init_vars,minf);
+    printf("Time=%f\nIteration_num=%d",(clock()-start)/CLOCKS_PER_SEC,iteration_num);
 
 
     printf("min=%f\n", minf);
@@ -261,6 +265,7 @@ void plot_hist(const polyhedron& my_pol,const std::vector<target_edge>& target_e
 {
     FILE*fp=fopen("hist_data.dat","w");
     int i=0;
+    double sum=0;
     for(auto target : target_edges_list)
     {
         i++;
@@ -282,6 +287,7 @@ void plot_hist(const polyhedron& my_pol,const std::vector<target_edge>& target_e
                                                          plane(result_vars[num_2*4],result_vars[num_2*4+1],result_vars[num_2*4+2],result_vars[num_2*4+3]),
                                                          target.normal_plane_2);
         res_2=target.coeff*((target.target_point_1-p_1)*(target.target_point_1-p_1)+(target.target_point_2-p_2)*(target.target_point_2-p_2));
+        sum+=res_2;
         fprintf(fp,"%d %e %e\n",i,res_1,res_2);
     }
     fclose(fp);
@@ -290,11 +296,15 @@ void plot_hist(const polyhedron& my_pol,const std::vector<target_edge>& target_e
 
     plot("set terminal png size 1500, 800");
     plot("set output '"+image_name+"'");
-
+    char st[256];
+    sprintf(st, "set title 'Total Error = %f,  AVG Error = %f'",sum,sum/target_edges_list.size());
+    plot(st);
     plot("set style data histograms");
+    plot("set grid");
     plot("set style histogram cluster");
-
-    plot("plot 'hist_data.dat' u 2 fs solid 0.5 lt rgb 'red', '' u 3 fs solid 0.5 lt rgb 'green'");
+    plot("set xlabel 'Номер ребра'");
+    plot("set ylabel 'Отклонение от целевого ребра'");
+    plot("plot 'hist_data.dat' u 2 title 'Начальная ошибка' fs solid 0.5 lt rgb 'red' , '' u 3 title 'Ошибка на текущем шаге' fs solid 0.5 lt rgb 'green'");
 
 
 }
@@ -642,6 +652,7 @@ void calc_gradient_1(const std::vector<target_edge>& target_edges_list, const st
 
 void calc_gradient_2(const std::vector<target_edge>& target_edges_list, const std::vector<double>& init_vars, double* gradient)
 {
+    iteration_num++;
     int var_num = (int)init_vars.size();
     for(int i=0; i<var_num; i++)
     {
