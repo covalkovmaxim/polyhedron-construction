@@ -82,9 +82,9 @@ int main(int argc, char** argv)
     init_vars_copy=init_vars;
     int var_num = init_vars.size();
 
-    nlopt::opt opt(nlopt::LD_LBFGS, var_num);
+    nlopt::opt opt(nlopt::LD_SLSQP, var_num);
     opt.set_min_objective(myvfunc, (void*)&target_edges_list);
-    opt.set_xtol_rel(1e-7);
+    opt.set_xtol_rel(1e-4);
     opt.set_maxeval(atoi(argv[3]));
     double minf;
     double start=clock();

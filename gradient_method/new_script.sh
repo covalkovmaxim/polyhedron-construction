@@ -1,7 +1,7 @@
 for i in {1..10}; 
 do 
 	./prog; 
-	./bfgs start_model.txt input.txt 10000; 
+	./result start_model.txt input.txt ; 
 	gnuplot load 'animator.gp';
        	cp input.png images/$i/input.png; 
 	cp out.png images/$i/out.png;
